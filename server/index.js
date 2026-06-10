@@ -13,6 +13,7 @@ const app = express();
 app.use(express.json({ limit: '8mb' }));
 app.use(express.static(path.join(__dirname, '..')));
 
+
 const sessions = new Map();
 function getSession(id) {
   if (!sessions.has(id)) {
@@ -210,6 +211,7 @@ async function startServer() {
   await loadFallback();
   console.log(`Loaded fallback entrances: ${backupEntrances.length}`);
 
+  // /enter kept for backward-compatibility but entrance page is removed
   app.post('/enter', async (req, res) => {
   const { name, branch, field } = req.body;
   if (!branch || !field) return res.status(400).json({ error: 'branch and field required' });
