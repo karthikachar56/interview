@@ -1,0 +1,93 @@
+[
+  {
+    "name": "kart",
+    "branch": "Computer Science",
+    "field": "Frontend Development",
+    "createdAt": "2026-06-10T01:48:11.359Z",
+    "id": "fallback-1781056092257"
+  },
+  {
+    "name": "hi",
+    "branch": "Electronics",
+    "field": "Embedded Systems",
+    "createdAt": "2026-06-07T14:02:33.002Z",
+    "id": "fallback-1780840953002"
+  },
+  {
+    "name": "h",
+    "branch": "Computer Science",
+    "field": "Backend Development",
+    "createdAt": "2026-06-07T14:01:52.818Z",
+    "id": "fallback-1780840912818"
+  },
+  {
+    "name": "manu",
+    "branch": "Computer Science",
+    "field": "Frontend Development",
+    "createdAt": "2026-06-07T12:20:10.786Z",
+    "id": "fallback-1780834812354"
+  },
+  {
+    "name": "manu 1",
+    "branch": "Electronics",
+    "field": "VLSI Design",
+    "createdAt": "2026-06-07T11:54:42.155Z",
+    "id": "fallback-1780833282155"
+  },
+  {
+    "name": "manu 1",
+    "branch": "Mechanical",
+    "field": "Thermal Engineering",
+    "createdAt": "2026-06-07T11:39:22.153Z",
+    "id": "fallback-1780832362153"
+  },
+  {
+    "name": "manu",
+    "branch": "Electronics",
+    "field": "VLSI Design",
+    "createdAt": "2026-06-07T11:16:50.950Z",
+    "id": "fallback-1780831010950"
+  },
+  {
+    "name": "karthik",
+    "branch": "Electronics",
+    "field": "Embedded Systems",
+    "createdAt": "2026-06-07T11:07:07.425Z",
+    "id": "fallback-1780830427425"
+  },
+  {
+    "name": "karthik c m",
+    "branch": "Computer Science",
+    "field": "Cloud Computing",
+    "createdAt": "2026-06-07T11:06:54.042Z",
+    "id": "fallback-1780830414042"
+  },
+  {
+    "name": "karthik c m",
+    "branch": "Computer Science",
+    "field": "Cloud Computing",
+    "createdAt": "2026-06-07T11:04:42.185Z",
+    "id": "fallback-1780830282185"
+  },
+  {
+    "name": "karthik",
+    "branch": "Computer Science",
+    "field": "Frontend Development",
+    "createdAt": "2026-06-07T11:03:40.454Z",
+    "id": "fallback-1780830220454"
+  },
+  {
+    "name": "karthik",
+    "branch": "Computer Science",
+    "field": "Frontend Development",
+    "createdAt": "2026-06-07T11:03:30.115Z",
+    "id": "fallback-1780830210115"
+  },
+  {
+    "name": "karthik",
+    "branch": "Computer Science",
+    "field": "Frontend Development",
+    "createdAt": "2026-06-07T10:50:54.223Z",
+    "id": "fallback-1780829454223"
+  }
+]

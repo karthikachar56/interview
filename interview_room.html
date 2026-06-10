@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Interview Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .code-font { font-family: 'Fira Code', monospace; }
+        
+        #floatingContainer { 
+            position: fixed; bottom: 20px; right: 20px; 
+            width: 200px; 
+            aspect-ratio: 16 / 9;
+            z-index: 100; 
+            border: 3px solid #6366f1; 
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+            background: #000; 
+            overflow: hidden; 
+            user-select: none;
+            transition: width 0.3s ease;
+        }
+
+        .video-feed { 
+            width: 100%; height: 100%;
+            object-fit: cover; 
+            display: block;
+            cursor: grab;
+        }
+        .video-feed:active { cursor: grabbing; }
+
+        .controls {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.85); 
+            display: flex; padding: 4px; gap: 2px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 overflow-y-auto">
+
+    <div class="max-w-[1400px] mx-auto min-h-[90vh] grid grid-cols-12 gap-4">
+        <header class="col-span-12 flex justify-between items-center py-2 px-4 border-b border-slate-800">
+            <div>
+                <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">AI Interview Room</h1>
+                <div id="roomInfo" class="text-sm text-slate-400 mt-1"></div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="timerBox" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1 text-sm text-emerald-300 font-semibold">Time Left: 05:00</div>
+                <div id="status" class="text-sm text-slate-400">Live | Ready</div>
+            </div>
+        </header>
+
+        <main class="col-span-12 lg:col-span-8 grid grid-rows-[300px,400px,150px] gap-4">
+            <section class="bg-black rounded-2xl border border-slate-800 relative overflow-hidden flex items-center justify-center">
+                <div class="text-center text-slate-500">
+                    <div class="w-20 h-20 bg-indigo-500/20 rounded-full mb-4 mx-auto flex items-center justify-center text-3xl">🤖</div>
+                    <p>Interviewer Feed</p>
+                </div>
+            </section>
+
+            <section id="shareStage" class="bg-black rounded-2xl border border-slate-800 relative overflow-hidden flex items-center justify-center hidden">
+                <video id="mainVideo" class="w-full h-full video-feed" autoplay muted playsinline></video>
+                <div class="absolute top-2 left-2 bg-black/60 px-2 py-1 text-[10px] rounded uppercase tracking-wider">Live Screen Share</div>
+            </section>
+
+            <section class="bg-slate-900 rounded-2xl p-4 border border-slate-800 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs text-slate-500 uppercase font-semibold">Coding Environment</span>
+                    <div class="flex gap-2">
+                        <select id="langSelect" class="bg-slate-800 text-xs px-2 py-1 rounded border border-slate-700">
+                            <option value="python">Python</option>
+                            <option value="cpp">C++</option>
+                            <option value="c">C</option>
+                            <option value="java">Java</option>
+                            <option value="javascript">JavaScript</option>
+                        </select>
+                        <button id="runBtn" class="bg-emerald-600 hover:bg-emerald-500 text-xs px-3 py-1 rounded font-bold">Run Code</button>
+                    </div>
+                </div>
+                <textarea id="codeArea" class="w-full flex-grow bg-slate-950 p-4 rounded-xl text-slate-300 code-font text-sm border border-slate-800 focus:outline-none"></textarea>
+            </section>
+
+            <section class="bg-black rounded-2xl p-4 border border-slate-800">
+                <span class="text-xs text-slate-500 uppercase font-semibold">Console Output</span>
+                <div id="consoleOut" class="code-font text-emerald-400 text-xs mt-2 overflow-y-auto h-20"></div>
+            </section>
+        </main>
+
+        <aside class="col-span-12 lg:col-span-4 grid grid-rows-[auto,auto,auto] gap-4">
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800"><p class="text-sm font-medium text-slate-300">"Explain recursion with an example."</p></div>
+            <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800 flex flex-col gap-2">
+                <textarea id="draftArea" class="w-full h-40 bg-transparent text-sm focus:outline-none" placeholder="Draft answer..."></textarea>
+                <button id="sendBtn" class="w-full py-2 bg-indigo-600 rounded-lg hover:bg-indigo-500 text-sm font-bold transition">Send to Interviewer</button>
+            </div>
+            <div class="bg-black rounded-2xl border border-slate-800 flex flex-col gap-2 p-4">
+                <button id="shareScreen" class="w-full py-3 bg-indigo-600 rounded-xl hover:bg-indigo-500 transition font-bold">Share Screen</button>
+                <button id="exitBtn" class="w-full py-3 bg-slate-800 hover:bg-red-900 transition font-bold text-slate-400 hover:text-white border border-slate-700 rounded-xl">Exit Room</button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Draggable Floating Video Container -->
+    <div id="floatingContainer">
+        <video id="floatingVideo" class="video-feed" autoplay muted playsinline></video>
+        <div class="controls">
+            <button id="toggleCam" class="flex-1 bg-slate-700 hover:bg-slate-600 py-1 text-[9px] rounded uppercase font-bold">Cam Off</button>
+            <button id="toggleMic" class="flex-1 bg-slate-700 hover:bg-slate-600 py-1 text-[9px] rounded uppercase font-bold">Mic Off</button>
+            <button id="resizeBtn" class="flex-1 bg-indigo-700 hover:bg-indigo-600 py-1 text-[9px] rounded uppercase font-bold">Expand</button>
+        </div>
+    </div>
+
+    <script>
+        const mainVideo = document.getElementById('mainVideo');
+        const shareStage = document.getElementById('shareStage');
+        const floatVideo = document.getElementById('floatingVideo');
+        const floatCont = document.getElementById('floatingContainer');
+        const shareBtn = document.getElementById('shareScreen');
+        const exitBtn = document.getElementById('exitBtn');
+        const toggleCam = document.getElementById('toggleCam');
+        const toggleMic = document.getElementById('toggleMic');
+        const resizeBtn = document.getElementById('resizeBtn');
+        const consoleOut = document.getElementById('consoleOut');
+        const roomInfo = document.getElementById('roomInfo');
+        const statusLabel = document.getElementById('status');
+        const langSelect = document.getElementById('langSelect');
+        const runBtn = document.getElementById('runBtn');
+        const codeArea = document.getElementById('codeArea');
+        const draftArea = document.getElementById('draftArea');
+        const sendBtn = document.getElementById('sendBtn');
+
+        let cameraStream = null;
+        let screenStream = null;
+        let previewSocket = null;
+        let previewSocketReady = false;
+        let previewSocketConnected = false;
+        let previewQueue = [];
+        let previewReconnectTimer = null;
+        let isLarge = false;
+        const INTERVIEW_DURATION_MS = 5 * 60 * 1000;
+        let timerInterval = null;
+
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host || 'localhost:3000';
+        const wsBaseUrl = `${wsProtocol}//${wsHost}`;
+        const entranceId = new URLSearchParams(window.location.search).get('id');
+        const starterTemplates = {
+            python: 'print("Hello, world!")',
+            javascript: 'console.log("Hello, world!");',
+            c: '#include <stdio.h>\nint main() { printf("Hello, world!\\n"); return 0; }',
+            cpp: '#include <iostream>\nint main() { std::cout << "Hello, world!" << std::endl; return 0; }',
+            java: 'public class Main { public static void main(String[] args) { System.out.println("Hello, world!"); } }'
+        };
+
+        function appendConsole(message, overwrite = false) {
+            if (overwrite) {
+                consoleOut.textContent = message;
+            } else {
+                consoleOut.textContent += message + '\n';
+            }
+            consoleOut.scrollTop = consoleOut.scrollHeight;
+        }
+
+        function setStatusLabel(text) {
+            if (statusLabel) statusLabel.textContent = text;
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
+        function startInterviewTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            const startedAt = Date.now();
+            const timerBox = document.getElementById('timerBox');
+
+            timerInterval = setInterval(() => {
+                const remaining = INTERVIEW_DURATION_MS - (Date.now() - startedAt);
+                if (timerBox) timerBox.textContent = `Time Left: ${formatTime(remaining)}`;
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    if (timerBox) timerBox.textContent = 'Time Left: 00:00';
+                    setStatusLabel('Time is up');
+                    if (typeof window !== 'undefined') {
+                        window.location.href = 'index.html';
+                    }
+                }
+            }, 1000);
+        }
+
+        function updateCodeTemplate() {
+            if (!codeArea || !langSelect) return;
+            const currentLang = langSelect.value;
+            const template = starterTemplates[currentLang] || '';
+            if (!codeArea.value.trim()) {
+                codeArea.value = template;
+            }
+        }
+
+        async function runCode() {
+            if (!langSelect || !codeArea) return;
+            const language = langSelect.value;
+            const code = codeArea.value;
+            if (!language || !code.trim()) {
+                appendConsole('Please choose a language and enter code before running.', false);
+                return;
+            }
+
+            try {
+                setStatusLabel('Running code...');
+                runBtn.disabled = true;
+                appendConsole(`> Running ${language} code...`, false);
+
+                const res = await fetch('/api/compile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language, code })
+                });
+                const json = await res.json();
+
+                if (!res.ok || !json.ok) {
+                    appendConsole(`Error: ${json.error || 'Compilation failed'}\n${json.output || ''}`, false);
+                    setStatusLabel('Compilation failed');
+                } else {
+                    appendConsole(`Output:\n${json.output}`.trim(), false);
+                    setStatusLabel('Run completed');
+                }
+            } catch (err) {
+                appendConsole(`Request failed: ${err.message}`, false);
+                setStatusLabel('Request error');
+            } finally {
+                runBtn.disabled = false;
+            }
+        }
+
+        if (langSelect) {
+            langSelect.addEventListener('change', updateCodeTemplate);
+        }
+
+        if (runBtn) {
+            runBtn.addEventListener('click', runCode);
+        }
+
+        updateCodeTemplate();
+
+        function parseQuery() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                name: params.get('name') || null,
+                branch: params.get('branch') || 'Unknown Branch',
+                field: params.get('field') || 'Unknown Field'
+            };
+        }
+
+        function initPreviewSocket(id) {
+            if (!id || previewSocket) return;
+            if (previewReconnectTimer) {
+                clearTimeout(previewReconnectTimer);
+                previewReconnectTimer = null;
+            }
+            previewSocketReady = false;
+            previewSocketConnected = false;
+            previewSocket = new WebSocket(`${wsBaseUrl}/ws`);
+
+            previewSocket.addEventListener('open', () => {
+                previewSocketReady = true;
+                previewSocketConnected = true;
+                previewSocket.send(JSON.stringify({ type: 'register', role: 'candidate', id }));
+                console.log('candidate preview websocket open', id, 'url=', `${wsBaseUrl}/ws`);
+                if (previewQueue.length) {
+                    console.log('candidate preview websocket flushing queued frames:', previewQueue.length);
+                    previewQueue.forEach(frame => previewSocket.send(JSON.stringify(frame)));
+                    previewQueue = [];
+                }
+            });
+
+            previewSocket.addEventListener('close', (event) => {
+                console.warn('candidate preview websocket closed', event.code, event.reason);
+                previewSocket = null;
+                previewSocketReady = false;
+                previewSocketConnected = false;
+                previewReconnectTimer = setTimeout(() => initPreviewSocket(id), 2000);
+            });
+
+            previewSocket.addEventListener('error', (err) => {
+                console.warn('candidate preview websocket error', err);
+                if (previewSocket) previewSocket.close();
+            });
+        }
+
+        function sendPreviewFrame(id, image, previewType) {
+            if (previewSocket && previewSocket.readyState === WebSocket.OPEN) {
+                previewSocket.send(JSON.stringify({ type: 'preview', id, previewType, image }));
+                return true;
+            }
+            if (previewSocket && previewSocket.readyState === WebSocket.CONNECTING) {
+                previewQueue = [{ type: 'preview', id, previewType, image }];
+                return null;
+            }
+            return false;
+        }
+
+        function sendDraftMessage(id, text) {
+            if (previewSocket && previewSocket.readyState === WebSocket.OPEN) {
+                previewSocket.send(JSON.stringify({ type: 'draft', id, text }));
+                return true;
+            }
+            if (previewSocket && previewSocket.readyState === WebSocket.CONNECTING) {
+                previewQueue.push({ type: 'draft', id, text });
+                return null;
+            }
+            return false;
+        }
+
+        function renderRoomInfo() {
+            const { name, branch, field } = parseQuery();
+            roomInfo.textContent = name
+                ? `Name: ${name} • Branch: ${branch} • Field: ${field}`
+                : `Branch: ${branch} • Field: ${field}`;
+        }
+
+        if (entranceId) {
+            initPreviewSocket(entranceId);
+        }
+
+        if (sendBtn) {
+            sendBtn.addEventListener('click', () => {
+                const text = draftArea?.value.trim();
+                if (!entranceId) {
+                    appendConsole('No interview session ID found.');
+                    setStatusLabel('Session not ready');
+                    return;
+                }
+                if (!text) {
+                    appendConsole('Write a draft answer before sending it.');
+                    setStatusLabel('Draft is empty');
+                    return;
+                }
+
+                const result = sendDraftMessage(entranceId, text);
+                if (result !== false) {
+                    draftArea.value = '';
+                    appendConsole('Draft sent to interviewer.', false);
+                    setStatusLabel('Draft sent');
+                } else {
+                    appendConsole('WebSocket is not ready yet. Please wait a moment and try again.', false);
+                    setStatusLabel('Send failed');
+                }
+            });
+        }
+
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(s => {
+                cameraStream = s;
+                floatVideo.srcObject = s;
+                floatVideo.muted = true;
+                // start uploading periodic snapshots for admin preview if id present
+                if (entranceId) {
+                    startSnapshotUpload(entranceId, floatVideo);
+                }
+            })
+            .catch(() => {
+                consoleOut.innerText += '\n> Camera access denied or unavailable.';
+            });
+
+        toggleCam.onclick = () => {
+            if (!cameraStream) return;
+            const videoTrack = cameraStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                toggleCam.innerText = videoTrack.enabled ? "Cam Off" : "Cam On";
+                toggleCam.classList.toggle('bg-red-700', !videoTrack.enabled);
+            }
+        };
+
+        toggleMic.onclick = () => {
+            if (!cameraStream) return;
+            const audioTrack = cameraStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                floatVideo.muted = !audioTrack.enabled;
+                toggleMic.innerText = audioTrack.enabled ? "Mic Off" : "Mic On";
+                toggleMic.classList.toggle('bg-red-700', !audioTrack.enabled);
+                consoleOut.innerText += `\n> Mic ${audioTrack.enabled ? 'Enabled' : 'Muted'}`;
+            }
+        };
+
+        resizeBtn.onclick = () => {
+            isLarge = !isLarge;
+            floatCont.style.width = isLarge ? '400px' : '200px';
+            resizeBtn.innerText = isLarge ? "Minimize" : "Expand";
+        };
+
+        exitBtn.onclick = () => {
+            if (timerInterval) clearInterval(timerInterval);
+            window.location.href = 'index.html';
+        };
+
+        let isDragging = false;
+        let offset = { x: 0, y: 0 };
+        floatVideo.onmousedown = (e) => {
+            isDragging = true;
+            offset.x = e.clientX - floatCont.getBoundingClientRect().left;
+            offset.y = e.clientY - floatCont.getBoundingClientRect().top;
+            floatCont.style.bottom = 'auto';
+            floatCont.style.right = 'auto';
+        };
+        document.onmousemove = (e) => {
+            if (isDragging) {
+                floatCont.style.left = (e.clientX - offset.x) + 'px';
+                floatCont.style.top = (e.clientY - offset.y) + 'px';
+            }
+        };
+        document.onmouseup = () => isDragging = false;
+
+        shareBtn.onclick = async () => {
+            if (!screenStream) {
+                try {
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    // expose globally so snapshot uploader can prefer the screen
+                    window.screenStream = screenStream;
+                    mainVideo.srcObject = screenStream;
+                    // ensure autoplay continues even if clicked
+                    mainVideo.muted = true;
+                    mainVideo.playsInline = true;
+                    mainVideo.play().catch(() => {});
+                    // prevent accidental pausing when user clicks the preview
+                    mainVideo.onclick = (ev) => { ev.preventDefault(); mainVideo.play().catch(()=>{}); };
+
+                    shareStage.classList.remove('hidden');
+                    shareBtn.innerText = "Stop Sharing";
+                    shareBtn.className = "w-full py-3 bg-red-600 rounded-xl transition font-bold";
+                    screenStream.getVideoTracks()[0].onended = stopSharing;
+                } catch(e) { console.error(e); }
+            } else {
+                stopSharing();
+            }
+        };
+
+        function stopSharing() {
+            if(screenStream) screenStream.getTracks().forEach(t => t.stop());
+            screenStream = null;
+            window.screenStream = null;
+            mainVideo.srcObject = null;
+            shareStage.classList.add('hidden');
+            shareBtn.innerText = "Share Screen";
+            shareBtn.className = "w-full py-3 bg-indigo-600 rounded-xl transition font-bold";
+        }
+
+        // Snapshot upload: capture a frame and send it over WebSocket or fallback to POST
+        function startSnapshotUpload(id, videoEl) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            let running = true;
+
+            async function sendSnapshot() {
+                if (!running) return;
+                try {
+                    const sourceEl = (window.screenStream && mainVideo && mainVideo.srcObject) ? mainVideo : videoEl;
+                    console.log('snapshot: selected source', sourceEl === mainVideo ? 'screen/mainVideo' : 'cam/floatVideo');
+
+                    let srcW = sourceEl.videoWidth || sourceEl.clientWidth || 640;
+                    let srcH = sourceEl.videoHeight || sourceEl.clientHeight || Math.floor(srcW * 9 / 16);
+                    const targetW = 320;
+                    const scale = Math.min(1, targetW / srcW);
+                    const w = Math.max(160, Math.floor(srcW * scale));
+                    const h = Math.max(90, Math.floor(srcH * scale));
+                    canvas.width = w;
+                    canvas.height = h;
+
+                    try {
+                        ctx.drawImage(sourceEl, 0, 0, w, h);
+                    } catch (drawErr) {
+                        console.warn('snapshot: drawImage failed, will retry', drawErr);
+                        setTimeout(sendSnapshot, 500);
+                        return;
+                    }
+
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.45);
+                    const type = (sourceEl === mainVideo) ? 'screen' : 'cam';
+                    const wsResult = sendPreviewFrame(id, dataUrl, type);
+
+                    if (wsResult === false) {
+                        const res = await fetch(`/api/preview/${encodeURIComponent(id)}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ image: dataUrl, type })
+                        });
+                        if (res.ok) console.log('snapshot: fallback uploaded', id, type);
+                        else console.warn('snapshot: fallback upload failed', res.status);
+                    } else if (wsResult === null) {
+                        console.log('snapshot: preview queued until websocket opens', id, type);
+                    }
+                } catch (e) {
+                    console.warn('snapshot: error uploading', e);
+                } finally {
+                    setTimeout(sendSnapshot, 700);
+                }
+            }
+
+            sendSnapshot();
+            window.addEventListener('beforeunload', () => { running = false; });
+        }
+
+        renderRoomInfo();
+        startInterviewTimer();
+    </script>
+</body>
+</html>

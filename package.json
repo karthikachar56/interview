@@ -1,0 +1,14 @@
+{
+  "name": "ai-interview-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "init-db": "node db/init-mongo.js",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongodb": "^5.0.0",
+    "ws": "^8.13.0"
+  }
+}

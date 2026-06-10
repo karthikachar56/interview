@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+    
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <div id="appContainer" class="flex items-center justify-center min-h-screen p-4">
+        <div id="loginView" class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm border border-gray-100">
+            <div class="mb-8 text-center">
+                <h1 class="text-2xl font-bold text-gray-800">Admin Login</h1>
+                <p class="text-gray-500 text-sm mt-1">Please sign in to continue</p>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="email" placeholder="admin@example.com" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="password" placeholder="password123" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition mt-4">Login</button>
+            </form>
+            <div id="messageBox" class="hidden mt-4 p-3 rounded-lg text-sm text-center"></div>
+        </div>
+
+        <div id="dashboardView" class="hidden w-full max-w-5xl bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-6 border-b pb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">Dashboard</h2>
+                    <p class="text-sm text-gray-500 mt-1">Status: <span id="dashboardStatus">Loading...</span></p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="renderDashboard()" class="text-sm text-blue-600 hover:underline">Refresh</button>
+                    <button onclick="logout()" class="text-sm text-red-600 hover:underline">Logout</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-gray-400 text-sm uppercase tracking-wider">
+                            <th class="p-3">#</th>
+                            <th class="p-3">Name</th>
+                            <th class="p-3">Branch</th>
+                            <th class="p-3">Technical Course</th>
+                            <th class="p-3">Time Entered</th>
+                            <th class="p-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataBody" class="text-gray-700"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="controlRoomView" class="hidden w-full max-w-6xl bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-6 border-b pb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">Admin Control Room</h2>
+                    <p id="sessionDetails" class="text-sm text-gray-500 mt-1">Select a candidate session from the dashboard.</p>
+                </div>
+                <button onclick="backToDashboard()" class="text-sm bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200">Back to Dashboard</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                <div class="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Candidate</p>
+                    <p id="sessionName" class="text-sm font-semibold text-white">—</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Branch</p>
+                    <p id="sessionBranch" class="text-sm font-semibold text-white">—</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Technical Field</p>
+                    <p id="sessionField" class="text-sm font-semibold text-white">—</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Entered At</p>
+                    <p id="sessionEnteredAt" class="text-sm font-semibold text-white">—</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-black aspect-video rounded-xl overflow-hidden relative">
+                    <span class="absolute top-2 left-3 text-xs bg-black/50 px-2 py-1 rounded">Live Call</span>
+                    <img id="adminPreviewImg" class="w-full h-full object-cover" alt="Live preview" />
+                    <div id="previewTypeBadge" class="absolute top-2 right-3 text-[10px] bg-black/50 px-2 py-1 rounded text-white">No preview</div>
+                </div>
+                <div class="bg-gray-900 aspect-video rounded-xl flex items-center justify-center text-white relative">
+                    <span class="absolute top-2 left-3 text-xs bg-black/50 px-2 py-1 rounded">AI Humanized Model</span>
+                    <span class="text-gray-500">Model Control & Projection</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="p-4 border rounded-xl bg-gray-50">
+                    <h3 class="font-semibold text-sm text-gray-700 mb-3">Person Voice to Text</h3>
+                    <div id="voiceToText" class="h-32 overflow-y-auto text-sm text-gray-500 italic p-2 bg-white rounded border">
+                        Waiting for candidate draft...
+                    </div>
+                </div>
+                <div class="p-4 border rounded-xl bg-gray-50">
+                    <h3 class="font-semibold text-sm text-gray-700 mb-3">Asking Questions (AI)</h3>
+                    <textarea id="aiQuestionText" class="w-full h-32 p-2 text-sm border rounded resize-none" placeholder="Enter question for AI to ask..."></textarea>
+                    <button id="pushQuestionBtn" class="w-full mt-2 bg-blue-600 text-white text-xs py-2 rounded">Push to Model</button>
+                </div>
+                <div class="p-4 border rounded-xl bg-gray-50">
+                    <h3 class="font-semibold text-sm text-gray-700 mb-3">Real-time Calculation</h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between"><span>Confidence</span><span class="font-bold">9/10</span></div>
+                        <div class="flex justify-between"><span>Vocabulary</span><span class="font-bold">8/10</span></div>
+                        <div class="flex justify-between"><span>Nervousness</span><span class="font-bold">2/10</span></div>
+                        <div class="border-t pt-2 mt-2 font-bold text-blue-700">Overall: 85/100</div>
+                    </div>
+                </div>
+                <div class="p-4 border rounded-xl bg-gray-50">
+                    <h3 class="font-semibold text-sm text-gray-700 mb-3">AI Training</h3>
+                    <div class="space-y-3">
+                        <input type="file" class="w-full text-xs">
+                        <button class="w-full bg-indigo-600 text-white text-xs py-2 rounded">Upload Questions/Training</button>
+                        <p class="text-[10px] text-gray-400">Upload JSON or text files for model training context.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const loginView = document.getElementById('loginView');
+        const dashboardView = document.getElementById('dashboardView');
+        const controlRoomView = document.getElementById('controlRoomView');
+        const messageBox = document.getElementById('messageBox');
+        const dashboardStatus = document.getElementById('dashboardStatus');
+        const dataBody = document.getElementById('dataBody');
+        const pushQuestionBtn = document.getElementById('pushQuestionBtn');
+        const aiQuestionText = document.getElementById('aiQuestionText');
+        const adminPreviewImg = document.getElementById('adminPreviewImg');
+        let selectedSession = null;
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (email === "admin@example.com" && password === "password123") {
+                await renderDashboard();
+                loginView.classList.add('hidden');
+                dashboardView.classList.remove('hidden');
+                messageBox.className = 'hidden';
+            } else {
+                messageBox.textContent = "Invalid credentials. Use admin@example.com / password123";
+                messageBox.className = "mt-4 p-3 rounded-lg text-sm text-center bg-red-100 text-red-700 block";
+            }
+        });
+
+        async function fetchEntrances() {
+            const res = await fetch('/api/entrances');
+            if (!res.ok) throw new Error('Failed to load entrances');
+            return res.json();
+        }
+
+        let previewSocket = null;
+        let previewReconnectTimer = null;
+        let previewPollTimer = null;
+        let previewSocketHealthy = false;
+        let currentPreviewObjectUrl = null;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host || 'localhost:3000';
+        const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+
+        function setPreviewImage(url) {
+            if (currentPreviewObjectUrl && currentPreviewObjectUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(currentPreviewObjectUrl);
+            }
+            currentPreviewObjectUrl = url;
+            adminPreviewImg.src = url;
+        }
+
+        async function fetchPreviewBlob(id, type) {
+            try {
+                const res = await fetch(`/api/preview/${encodeURIComponent(id)}?type=${encodeURIComponent(type)}`);
+                if (!res.ok) return null;
+                return await res.blob();
+            } catch (err) {
+                return null;
+            }
+        }
+
+        async function pollLatestPreview(id) {
+            if (!id) return;
+            const badge = document.getElementById('previewTypeBadge');
+            const screenBlob = await fetchPreviewBlob(id, 'screen');
+            const camBlob = screenBlob ? null : await fetchPreviewBlob(id, 'cam');
+            const blob = screenBlob || camBlob;
+            if (!blob) return;
+
+            const objectUrl = URL.createObjectURL(blob);
+            setPreviewImage(objectUrl);
+            previewSocketHealthy = true;
+            if (badge) badge.textContent = screenBlob ? 'Screen' : 'Camera';
+        }
+
+        function startPreviewPoll(id) {
+            stopPreviewPoll();
+            if (!id) return;
+            previewPollTimer = setInterval(() => {
+                pollLatestPreview(id).catch(() => {});
+            }, 1200);
+        }
+
+        function stopPreviewPoll() {
+            if (previewPollTimer) {
+                clearInterval(previewPollTimer);
+                previewPollTimer = null;
+            }
+        }
+
+        function startPreviewSocket(id) {
+            if (!id) return;
+            stopPreviewSocket();
+            previewSocketHealthy = false;
+            previewSocket = new WebSocket(wsUrl);
+            const badge = document.getElementById('previewTypeBadge');
+
+            previewSocket.addEventListener('open', () => {
+                previewSocket.send(JSON.stringify({ type: 'register', role: 'admin', id }));
+                console.log('admin preview websocket open', id, 'url=', wsUrl);
+                if (badge) badge.textContent = 'Waiting...';
+                stopPreviewPoll();
+            });
+
+            previewSocket.addEventListener('message', (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log('admin ws message received:', message);
+                    if (message.type === 'preview' && message.image) {
+                        setPreviewImage(message.image);
+                        previewSocketHealthy = true;
+                        stopPreviewPoll();
+                        if (badge) badge.textContent = message.previewType === 'screen' ? 'Screen' : 'Camera';
+                    }
+
+                    if (message.type === 'draft' && typeof message.text === 'string') {
+                        const draftBox = document.getElementById('voiceToText');
+                        if (draftBox) {
+                            draftBox.textContent = message.text;
+                            draftBox.classList.remove('text-gray-500', 'italic');
+                            draftBox.classList.add('text-gray-800', 'not-italic');
+                        }
+                    }
+                } catch (err) {
+                    console.warn('admin ws parse error:', err);
+                }
+            });
+
+            previewSocket.addEventListener('close', (event) => {
+                console.warn('admin preview websocket closed', event.code, event.reason);
+                previewSocket = null;
+                if (badge) badge.textContent = 'Disconnected';
+                previewReconnectTimer = setTimeout(() => {
+                    if (selectedSession && selectedSession.id) startPreviewSocket(selectedSession.id);
+                }, 2500);
+                startPreviewPoll(id);
+            });
+
+            previewSocket.addEventListener('error', (err) => {
+                console.warn('admin preview websocket error', err);
+                if (previewSocket) {
+                    previewSocket.close();
+                }
+            });
+
+            // Fallback to polling when the server doesn't send a preview in time
+            setTimeout(() => {
+                if (!previewSocketHealthy && previewSocket) {
+                    startPreviewPoll(id);
+                }
+            }, 1800);
+        }
+
+        function stopPreviewSocket() {
+            if (previewReconnectTimer) {
+                clearTimeout(previewReconnectTimer);
+                previewReconnectTimer = null;
+            }
+            stopPreviewPoll();
+            if (previewSocket) {
+                previewSocket.close();
+                previewSocket = null;
+            }
+            if (currentPreviewObjectUrl && currentPreviewObjectUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(currentPreviewObjectUrl);
+            }
+            currentPreviewObjectUrl = null;
+            adminPreviewImg.src = '';
+            const badge = document.getElementById('previewTypeBadge');
+            if (badge) badge.textContent = 'No preview';
+
+            const draftBox = document.getElementById('voiceToText');
+            if (draftBox) {
+                draftBox.textContent = 'Waiting for candidate draft...';
+                draftBox.classList.add('text-gray-500', 'italic');
+                draftBox.classList.remove('text-gray-800', 'not-italic');
+            }
+        }
+
+        async function renderDashboard() {
+            try {
+                dashboardStatus.textContent = 'Loading sessions...';
+                const data = await fetchEntrances();
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    dataBody.innerHTML = '<tr><td colspan="6" class="p-3 text-gray-500">No active interview sessions found.</td></tr>';
+                    dashboardStatus.textContent = 'No active sessions';
+                    return;
+                }
+
+                dataBody.innerHTML = data.map((item, index) => `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                        <td class="p-3 font-medium">${index + 1}</td>
+                        <td class="p-3">${item.name || 'Candidate'}</td>
+                        <td class="p-3">${item.branch}</td>
+                        <td class="p-3">${item.field}</td>
+                        <td class="p-3">${new Date(item.createdAt).toLocaleString()}</td>
+                            <td class="p-3">
+                                <button onclick='openControlRoom(${JSON.stringify(item.name || '')}, ${JSON.stringify(item.branch)}, ${JSON.stringify(item.field)}, ${JSON.stringify(item.createdAt)}, ${JSON.stringify(item.id || '')})' class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-blue-100 transition">See</button>
+                            </td>
+                    </tr>
+                `).join('');
+
+                dashboardStatus.textContent = `${data.length} active session${data.length === 1 ? '' : 's'}`;
+            } catch (err) {
+                dataBody.innerHTML = '<tr><td colspan="6" class="p-3 text-red-600">Unable to load entries.</td></tr>';
+                dashboardStatus.textContent = 'Failed to load sessions';
+                console.error(err);
+            }
+        }
+
+        function openControlRoom(name, branch, field, enteredAt = null, id = null) {
+            selectedSession = { name, branch, field, enteredAt, id };
+            const label = name ? `${name} — ${branch} / ${field}` : `${branch} / ${field}`;
+            document.getElementById('sessionDetails').textContent = `Monitoring session: ${label}`;
+            document.getElementById('sessionName').textContent = name || 'Candidate';
+            document.getElementById('sessionBranch').textContent = branch;
+            document.getElementById('sessionField').textContent = field;
+            document.getElementById('sessionEnteredAt').textContent = enteredAt ? new Date(enteredAt).toLocaleString() : 'Unknown';
+            const draftBox = document.getElementById('voiceToText');
+            if (draftBox) {
+                draftBox.textContent = 'Waiting for candidate draft...';
+                draftBox.classList.add('text-gray-500', 'italic');
+                draftBox.classList.remove('text-gray-800', 'not-italic');
+            }
+            dashboardView.classList.add('hidden');
+            controlRoomView.classList.remove('hidden');
+            startPreviewSocket(id);
+        }
+
+        function backToDashboard() {
+            stopPreviewSocket();
+            controlRoomView.classList.add('hidden');
+            dashboardView.classList.remove('hidden');
+        }
+
+        function logout() {
+            stopPreviewSocket();
+            loginView.classList.remove('hidden');
+            dashboardView.classList.add('hidden');
+            controlRoomView.classList.add('hidden');
+            loginForm.reset();
+        }
+
+        pushQuestionBtn.addEventListener('click', () => {
+            alert('Question pushed to model: ' + aiQuestionText.value);
+            aiQuestionText.value = '';
+        });
+    </script>
+</body>
+</html>

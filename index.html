@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Interview Entrance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-6">
+
+    <div class="max-w-md w-full bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl">
+        <h1 class="text-2xl font-bold mb-6 text-center text-indigo-400">Join AI Interview</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs uppercase text-slate-500 font-semibold mb-1">Your Name</label>
+                <input id="candidateName" type="text" placeholder="Candidate name (optional)" class="w-full bg-slate-800 p-3 rounded-lg border border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-100" />
+            </div>
+
+            <div>
+                <label class="block text-xs uppercase text-slate-500 font-semibold mb-1">Select Branch</label>
+                <select id="branch" class="w-full bg-slate-800 p-3 rounded-lg border border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="">-- Select Branch --</option>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="Electronics">Electronics & Communication</option>
+                    <option value="Mechanical">Mechanical Engineering</option>
+                    <option value="Data Science">Data Science</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs uppercase text-slate-500 font-semibold mb-1">Technical Field</label>
+                <select id="techField" class="w-full bg-slate-800 p-3 rounded-lg border border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="">-- Select Branch First --</option>
+                </select>
+            </div>
+
+            <button id="enterBtn" class="w-full py-3 mt-4 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold transition">Enter Room</button>
+        </div>
+    </div>
+
+    <script>
+        const branchSelect = document.getElementById('branch');
+        const fieldSelect = document.getElementById('techField');
+        const nameInput = document.getElementById('candidateName');
+
+        const fields = {
+            "Computer Science": ["Frontend Development", "Backend Development", "Cloud Computing", "Cybersecurity"],
+            "Electronics": ["Embedded Systems", "VLSI Design", "Signal Processing", "IoT"],
+            "Mechanical": ["Robotics", "Thermal Engineering", "Automotive Design", "Manufacturing"],
+            "Data Science": ["Machine Learning", "Big Data Analytics", "AI Research", "Business Intelligence"]
+        };
+
+        branchSelect.onchange = () => {
+            const branch = branchSelect.value;
+            fieldSelect.innerHTML = '<option value="">-- Select Field --</option>';
+            if (branch && fields[branch]) {
+                fields[branch].forEach(field => {
+                    const opt = document.createElement('option');
+                    opt.value = field;
+                    opt.textContent = field;
+                    fieldSelect.appendChild(opt);
+                });
+            }
+        };
+
+        document.getElementById('enterBtn').onclick = async () => {
+            const branch = branchSelect.value;
+            const field = fieldSelect.value;
+            const name = nameInput.value.trim();
+
+            if (!branch || !field) {
+                alert("Please select both a branch and a technical field.");
+                return;
+            }
+
+            const redirectToRoom = (id) => {
+                const q = `branch=${encodeURIComponent(branch)}&field=${encodeURIComponent(field)}${name ? `&name=${encodeURIComponent(name)}` : ''}`;
+                const url = id ? `interview_room.html?id=${encodeURIComponent(id)}&${q}` : `interview_room.html?${q}`;
+                window.location.href = url;
+            };
+
+            try {
+                const response = await fetch('/enter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, branch, field })
+                });
+                let json = {};
+                try { json = await response.json(); } catch (e) {}
+                if (!response.ok) {
+                    console.warn('Backend /enter returned error:', json.error || 'Failed to save entrance data');
+                }
+                redirectToRoom(json.id);
+                return;
+            } catch (err) {
+                console.warn('Backend /enter unavailable, continuing to interview room:', err);
+            }
+
+            redirectToRoom();
+        };
+    </script>
+</body>
+</html>
