@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>College Leaderboard — AI Interview Room</title>
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .leaderboard-header {
+      margin-bottom: 3rem;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .podium-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1px;
+      background: var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .podium-step {
+      background: var(--bg-color);
+      padding: 1.5rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .podium-medal {
+      margin-bottom: 0.5rem;
+    }
+    .podium-name {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .podium-score {
+      font-weight: 800;
+    }
+    .podium-branch {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .leaderboard-table th {
+      padding: 1rem;
+      text-align: left;
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .leaderboard-table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--glass-border);
+      font-size: 0.95rem;
+    }
+    .me-row {
+      background: rgba(139, 92, 246, 0.08);
+    }
+    .me-badge {
+      font-size: 0.75rem;
+      background: rgba(139, 92, 246, 0.2);
+      color: var(--accent-primary);
+      padding: 0.1rem 0.4rem;
+      border-radius: 0.25rem;
+      margin-left: 0.5rem;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--glass-border);
+      border-top: 3px solid var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container animate-fade-in-up">
+    <!-- Header -->
+    <header class="leaderboard-header">
+      <div>
+        <h1 class="text-gradient" style="font-size: 2.5rem;">College Leaderboard</h1>
+        <p>Top performers ranked by their best AI interview score.</p>
+      </div>
+      <button class="btn-secondary" id="backBtn">← Dashboard</button>
+    </header>
+
+    <!-- Loading Panel -->
+    <div id="loadingPanel" style="text-align: center; padding: 4rem; color: var(--text-secondary);">
+      <div class="spinner"></div>
+      Loading rankings...
+    </div>
+
+    <!-- Empty State Panel -->
+    <div id="emptyPanel" class="glass-panel" style="padding: 4rem; text-align: center; display: none;">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">🏆</div>
+      <h2 style="color: var(--text-primary); margin-bottom: 0.5rem;">No rankings yet</h2>
+      <p style="margin-bottom: 2rem;">Be the first to complete an interview and claim the top spot!</p>
+      <button class="btn-primary" id="startBtn">Start Interview</button>
+    </div>
+
+    <!-- Rankings Display Panel -->
+    <div id="rankingsPanel" class="glass-panel" style="padding: 0; overflow: hidden; display: none;">
+      <!-- Top 3 Hero Podium -->
+      <div class="podium-container" id="podiumContainer" style="display: none;">
+        <!-- Steps will be generated here -->
+      </div>
+
+      <!-- Rankings Table -->
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th style="padding-left: 1.5rem; width: 100px;">Rank</th>
+            <th>Student</th>
+            <th>Branch</th>
+            <th style="text-align: right; width: 120px;">Score</th>
+            <th style="text-align: right; width: 120px; padding-right: 1.5rem;">Date</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- Rows will be generated here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Authentication guard
+    const myUsn = localStorage.getItem('studentUsn') || '';
+
+    const loadingPanel = document.getElementById('loadingPanel');
+    const emptyPanel = document.getElementById('emptyPanel');
+    const rankingsPanel = document.getElementById('rankingsPanel');
+    const podiumContainer = document.getElementById('podiumContainer');
+    const tableBody = document.getElementById('tableBody');
+
+    const MEDALS = ['🥇', '🥈', '🥉'];
+
+    function getScoreColor(score) {
+      if (score >= 80) return '#10b981';
+      if (score >= 60) return '#f59e0b';
+      return '#ef4444';
+    }
+
+    // Fetch Leaderboard
+    fetch('/api/leaderboard')
+      .then(res => res.json())
+      .then(data => {
+        loadingPanel.style.display = 'none';
+
+        const entries = data.leaderboard || [];
+        if (entries.length === 0) {
+          emptyPanel.style.display = 'block';
+        } else {
+          // Render top 3 podium
+          if (entries.length >= 3) {
+            podiumContainer.innerHTML = "";
+            const podiumOrder = [entries[1], entries[0], entries[2]]; // 2nd, 1st, 3rd
+            const orderRanks = [2, 1, 3];
+            const heights = ['80px', '100px', '70px'];
+            
+            podiumOrder.forEach((entry, idx) => {
+              const rank = orderRanks[idx];
+              const step = document.createElement('div');
+              step.className = 'podium-step';
+              step.style.minHeight = heights[idx];
+              if (rank === 1) {
+                step.style.borderBottom = '3px solid #f59e0b';
+              }
+              
+              step.innerHTML = `
+                <div class="podium-medal" style="font-size: ${rank === 1 ? '2.5rem' : '2rem'};">${MEDALS[rank - 1]}</div>
+                <div class="podium-name" style="font-size: ${rank === 1 ? '1.1rem' : '1rem'};">${escapeHTML(entry.studentName)}</div>
+                <div class="podium-score" style="color: ${getScoreColor(entry.score)}; font-size: ${rank === 1 ? '1.5rem' : '1.25rem'};">${entry.score}</div>
+                <div class="podium-branch">${escapeHTML(entry.branch || '—')}</div>
+              `;
+              podiumContainer.appendChild(step);
+            });
+            podiumContainer.style.display = 'grid';
+          }
+
+          // Render table rows
+          tableBody.innerHTML = "";
+          entries.forEach((entry, index) => {
+            const isMe = entry.usn === myUsn;
+            const tr = document.createElement('tr');
+            if (isMe) tr.className = 'me-row';
+            
+            let dateStr = '—';
+            if (entry.completedAt) {
+              dateStr = new Date(entry.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+
+            const rankCol = index < 3 
+              ? `<span style="font-size: 1.25rem;">${MEDALS[index]}</span>`
+              : `<span style="color: var(--text-secondary);">#${index + 1}</span>`;
+
+            tr.innerHTML = `
+              <td style="padding-left: 1.5rem; font-weight: 700;">${rankCol}</td>
+              <td>
+                <div style="font-weight: 600; color: ${isMe ? 'var(--accent-primary)' : 'var(--text-primary)'};">
+                  ${escapeHTML(entry.studentName)}
+                  ${isMe ? '<span class="me-badge">You</span>' : ''}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHTML(entry.usn)}</div>
+              </td>
+              <td style="color: var(--text-secondary); font-size: 0.9rem;">${escapeHTML(entry.branch || '—')}</td>
+              <td style="text-align: right; font-weight: 800; font-size: 1.1rem; color: ${getScoreColor(entry.score)}">${entry.score}/100</td>
+              <td style="text-align: right; color: var(--text-secondary); font-size: 0.85rem; padding-right: 1.5rem;">${dateStr}</td>
+            `;
+            tableBody.appendChild(tr);
+          });
+
+          rankingsPanel.style.display = 'block';
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load rankings:", err);
+        loadingPanel.textContent = "Failed to load leaderboard.";
+      });
+
+    function escapeHTML(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Button Click listeners
+    document.getElementById('backBtn').addEventListener('click', () => {
+      window.location.href = '/student_dashboard.html';
+    });
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      window.location.href = '/student_introduction.html';
+    });
+  </script>
+</body>
+</html>

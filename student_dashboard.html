@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard — AI Interview Room</title>
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .dashboard-header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .stats-card {
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .stats-val {
+      font-size: 2rem;
+      font-weight: 800;
+    }
+    .stats-lbl {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    .action-card {
+      padding: 2rem;
+    }
+    .action-card h2 {
+      margin-bottom: 0.75rem;
+    }
+    .action-card p {
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container animate-fade-in-up">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div>
+        <h1 class="text-gradient" id="greetingTitle" style="font-size: 2.5rem;">
+          Welcome back! 👋
+        </h1>
+        <p id="greetingSub">Ready to ace your next interview?</p>
+      </div>
+      <div>
+        <button class="btn-secondary" id="logoutBtn" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Logout</button>
+      </div>
+    </header>
+
+    <!-- Loading screen -->
+    <div id="statsLoading" style="text-align: center; padding: 2rem 0; color: var(--text-secondary);">
+      Loading statistics...
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-row" id="statsRow" style="display: none;">
+      <div class="glass-panel stats-card">
+        <div class="stats-val" id="totalInterviews" style="color: var(--accent-primary);">0</div>
+        <div class="stats-lbl">Interviews Done</div>
+      </div>
+      <div class="glass-panel stats-card" id="scoreCard" style="display: none;">
+        <div class="stats-val" id="latestScore">0/100</div>
+        <div class="stats-lbl">Latest Score</div>
+      </div>
+    </div>
+
+    <!-- Main action panels -->
+    <main class="dashboard-grid">
+      <!-- Card 1 -->
+      <section class="glass-panel action-card">
+        <div style="font-size: 2rem; margin-bottom: 1rem;">🎙️</div>
+        <h2>Start AI Interview</h2>
+        <p>Begin a mock technical interview powered by Gemini AI. Get instant questions, live transcription, and a scored report.</p>
+        <button class="btn-primary" id="startInterviewBtn" style="width: 100%;">Start New Interview →</button>
+      </section>
+
+      <!-- Card 2 -->
+      <section class="glass-panel action-card">
+        <div style="font-size: 2rem; margin-bottom: 1rem;">📊</div>
+        <h2>Interview History</h2>
+        <p>Review your past performance, read AI-generated feedback, and track your improvement over time.</p>
+        <button class="btn-secondary" id="historyBtn" style="width: 100%;">View History →</button>
+      </section>
+
+      <!-- Card 3 -->
+      <section class="glass-panel action-card">
+        <div style="font-size: 2rem; margin-bottom: 1rem;">🏆</div>
+        <h2>College Leaderboard</h2>
+        <p>See where you rank among your peers. Compete, improve, and claim your spot at the top.</p>
+        <button class="btn-secondary" id="leaderboardBtn" style="width: 100%;">View Leaderboard →</button>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Authentication guard
+    const usn = localStorage.getItem('studentUsn');
+    const studentName = localStorage.getItem('studentName');
+
+    if (!usn || !studentName) {
+      localStorage.clear();
+      window.location.href = '/index.html';
+    }
+
+    // Greet user
+    const firstName = studentName.split(' ')[0];
+    document.getElementById('greetingTitle').textContent = `Welcome back, ${firstName}! 👋`;
+
+    // Load Stats
+    fetch(`/api/student/sessions?usn=${encodeURIComponent(usn)}`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('statsLoading').style.display = 'none';
+        
+        const sessions = data.sessions || [];
+        document.getElementById('totalInterviews').textContent = sessions.length;
+        
+        if (sessions.length > 0) {
+          const latest = sessions[0];
+          if (latest.score !== undefined && latest.score !== null) {
+            const scoreVal = latest.score;
+            const scoreEl = document.getElementById('latestScore');
+            scoreEl.textContent = `${scoreVal}/100`;
+
+            // score color coloring
+            if (scoreVal >= 80) {
+              scoreEl.style.color = '#10b981';
+            } else if (scoreVal >= 60) {
+              scoreEl.style.color = '#f59e0b';
+            } else {
+              scoreEl.style.color = '#ef4444';
+            }
+            document.getElementById('scoreCard').style.display = 'block';
+          }
+        }
+        document.getElementById('statsRow').style.display = 'grid';
+      })
+      .catch(err => {
+        console.error("Failed to load dashboard stats:", err);
+        document.getElementById('statsLoading').textContent = "Failed to load statistics.";
+      });
+
+    // Navigation triggers
+    document.getElementById('startInterviewBtn').addEventListener('click', () => {
+      // Directs candidate to the round selection screen
+      window.location.href = '/student_introduction.html';
+    });
+
+    document.getElementById('historyBtn').addEventListener('click', () => {
+      window.location.href = '/student_history.html';
+    });
+
+    document.getElementById('leaderboardBtn').addEventListener('click', () => {
+      window.location.href = '/student_leaderboard.html';
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.clear();
+      window.location.href = '/index.html';
+    });
+  </script>
+</body>
+</html>

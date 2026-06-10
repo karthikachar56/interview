@@ -1,200 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Mock Interview — Candidate Portal</title>
-    <!-- Modern Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS (approved via CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Outfit', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
-            min-height: 100vh;
-        }
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.45);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-        .glowing-button {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
-            transition: all 0.3s ease;
-        }
-        .glowing-button:hover {
-            box-shadow: 0 0 25px rgba(99, 102, 241, 0.75);
-            transform: translateY(-2px);
-        }
-        .glowing-border:focus-within {
-            border-color: rgba(99, 102, 241, 0.6);
-            box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Login — AI Interview Room</title>
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .login-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .login-form {
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .avatar-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+    }
+    .form-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      margin-bottom: 1.75rem;
+    }
+    .grid-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.375rem;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .input-field {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus {
+      border-color: var(--accent-primary);
+    }
+    select.input-field {
+      background: rgba(0, 0, 0, 0.4);
+      color: white;
+      cursor: pointer;
+    }
+    .error-box {
+      padding: 0.75rem;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 0.5rem;
+      margin-bottom: 1.25rem;
+      color: var(--accent-danger);
+      font-size: 0.875rem;
+      display: none;
+    }
+  </style>
 </head>
-<body class="text-slate-100 flex flex-col justify-between p-4 sm:p-8">
-    <!-- Header -->
-    <header class="w-full max-w-6xl mx-auto flex justify-between items-center py-4">
-        <div class="flex items-center gap-3">
-            <span class="text-2xl sm:text-3xl">🤖</span>
-            <span class="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">AI Interview Platform</span>
+<body>
+  <div class="login-container">
+    <form id="loginForm" class="glass-panel login-form animate-fade-in-up">
+      <!-- Header -->
+      <div class="header">
+        <div class="avatar-icon">🎓</div>
+        <h2>Student Registration</h2>
+        <p style="margin-top: 0.25rem;">Enter your details to begin the AI mock interview</p>
+      </div>
+
+      <!-- Input Fields -->
+      <div class="form-grid">
+        <div class="grid-row-2">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="studentName" required placeholder="John Doe" class="input-field">
+          </div>
+          <div class="form-group">
+            <label>USN *</label>
+            <input type="text" id="usn" required placeholder="1AB22CS001" class="input-field">
+          </div>
         </div>
-        <div>
-            <a href="/admin.html" class="text-xs sm:text-sm text-slate-400 hover:text-white transition duration-200 border border-slate-700/60 rounded-full px-4 py-1.5 bg-slate-900/30 hover:bg-slate-900/80">
-                Admin Panel →
-            </a>
+
+        <div class="form-group">
+          <label>College Name</label>
+          <input type="text" id="college" placeholder="e.g. IIT Bombay" class="input-field">
         </div>
-    </header>
 
-    <!-- Main Registration Card -->
-    <main class="flex-1 flex items-center justify-center py-8">
-        <div class="glass-panel w-full max-w-md p-6 sm:p-10 rounded-3xl animate-fade-in-up">
-            <div class="text-center mb-8">
-                <div class="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-3xl mb-4">
-                    📝
-                </div>
-                <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Candidate Entrance</h1>
-                <p class="text-slate-400 text-xs sm:text-sm mt-2">Enter your credentials to start your mock interview</p>
-            </div>
-
-            <form id="entranceForm" class="space-y-5">
-                <!-- Name -->
-                <div>
-                    <label for="name" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Full Name</label>
-                    <div class="glowing-border flex items-center bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-2.5 transition">
-                        <span class="text-slate-500 mr-2 text-sm">👤</span>
-                        <input type="text" id="name" placeholder="John Doe" required 
-                            class="bg-transparent w-full text-sm text-white focus:outline-none placeholder-slate-600">
-                    </div>
-                </div>
-
-                <!-- Branch -->
-                <div>
-                    <label for="branch" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Academic Branch</label>
-                    <div class="glowing-border flex items-center bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-2.5 transition">
-                        <span class="text-slate-500 mr-2 text-sm">🎓</span>
-                        <select id="branch" required 
-                            class="bg-transparent w-full text-sm text-white focus:outline-none appearance-none cursor-pointer">
-                            <option value="" disabled selected class="bg-slate-950">Select your branch...</option>
-                            <option value="Computer Science & Engineering" class="bg-slate-950">Computer Science & Engineering</option>
-                            <option value="Information Science & Engineering" class="bg-slate-950">Information Science & Engineering</option>
-                            <option value="Electronics & Communication" class="bg-slate-950">Electronics & Communication</option>
-                            <option value="Electrical & Electronics" class="bg-slate-950">Electrical & Electronics</option>
-                            <option value="Information Technology" class="bg-slate-950">Information Technology</option>
-                            <option value="Mechanical Engineering" class="bg-slate-950">Mechanical Engineering</option>
-                            <option value="Civil Engineering" class="bg-slate-950">Civil Engineering</option>
-                        </select>
-                        <span class="text-slate-500 pointer-events-none text-[10px]">▼</span>
-                    </div>
-                </div>
-
-                <!-- Technical Field -->
-                <div>
-                    <label for="field" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Target Job Profile</label>
-                    <div class="glowing-border flex items-center bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-2.5 transition">
-                        <span class="text-slate-500 mr-2 text-sm">💻</span>
-                        <select id="field" required 
-                            class="bg-transparent w-full text-sm text-white focus:outline-none appearance-none cursor-pointer">
-                            <option value="" disabled selected class="bg-slate-950">Select profile field...</option>
-                            <option value="Fullstack Web Developer" class="bg-slate-950">Fullstack Web Developer</option>
-                            <option value="Frontend Web Developer" class="bg-slate-950">Frontend Web Developer</option>
-                            <option value="Backend Developer (Node.js/Python)" class="bg-slate-950">Backend Developer (Node.js/Python)</option>
-                            <option value="Python Software Engineer" class="bg-slate-950">Python Software Engineer</option>
-                            <option value="Java System Developer" class="bg-slate-950">Java System Developer</option>
-                            <option value="C++ Core Systems Engineer" class="bg-slate-950">C++ Core Systems Engineer</option>
-                            <option value="Data Scientist / Analyst" class="bg-slate-950">Data Scientist / Analyst</option>
-                        </select>
-                        <span class="text-slate-500 pointer-events-none text-[10px]">▼</span>
-                    </div>
-                </div>
-
-                <!-- Alert Message -->
-                <div id="alertBox" class="hidden text-xs rounded-xl p-3.5 border border-red-500/20 bg-red-500/10 text-red-400">
-                </div>
-
-                <!-- Submit Button -->
-                <button type="submit" id="submitBtn" class="glowing-button w-full text-white font-bold py-3.5 rounded-xl transition text-sm flex justify-center items-center gap-2">
-                    Start Interview Session →
-                </button>
-            </form>
+        <div class="grid-row-2">
+          <div class="form-group">
+            <label>Branch / Department</label>
+            <input type="text" id="branch" placeholder="e.g. CS, ECE" class="input-field">
+          </div>
+          <div class="form-group">
+            <label>Year of Study</label>
+            <select id="year" class="input-field">
+              <option value="1st Year">1st Year</option>
+              <option value="2nd Year">2nd Year</option>
+              <option value="3rd Year">3rd Year</option>
+              <option value="4th Year" selected>4th Year</option>
+              <option value="Graduated">Graduated</option>
+            </select>
+          </div>
         </div>
-    </main>
+      </div>
 
-    <!-- Footer -->
-    <footer class="w-full text-center text-xs text-slate-500 py-4 border-t border-slate-900/80">
-        AI Mock Interview Room • Built with Node.js & WebSockets
-    </footer>
+      <!-- Error message -->
+      <div id="errorBox" class="error-box"></div>
 
-    <script>
-        const form = document.getElementById('entranceForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const alertBox = document.getElementById('alertBox');
+      <!-- Submit button -->
+      <button type="submit" id="submitBtn" class="btn-primary" style="width: 100%; font-size: 1rem; padding: 0.875rem;">
+        Proceed to Setup →
+      </button>
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // UI state: loading
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Creating Session...
-            `;
-            alertBox.classList.add('hidden');
+      <p style="text-align: center; margin-top: 1.25rem; color: var(--text-secondary); font-size: 0.8rem;">
+        Your details are only used to personalize your interview experience.
+      </p>
+    </form>
+  </div>
 
-            const payload = {
-                name: document.getElementById('name').value.trim(),
-                branch: document.getElementById('branch').value,
-                field: document.getElementById('field').value
-            };
+  <script>
+    // Redirect to dashboard if student is already logged in
+    const storedUsn = localStorage.getItem('studentUsn');
+    if (storedUsn) {
+      window.location.href = '/student_dashboard.html';
+    }
 
-            try {
-                const response = await fetch('/enter', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+    const form = document.getElementById('loginForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const errorBox = document.getElementById('errorBox');
 
-                const data = await response.json();
-                if (!response.ok || !data.ok) {
-                    throw new Error(data.error || 'Failed to initialize session');
-                }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ Registering...';
+      errorBox.style.display = 'none';
 
-                // Redirect to the interview room page
-                const queryParams = new URLSearchParams({
-                    id: data.id,
-                    name: payload.name,
-                    branch: payload.branch,
-                    field: payload.field
-                });
-                window.location.href = `/interview_room.html?${queryParams.toString()}`;
+      const payload = {
+        studentName: document.getElementById('studentName').value.trim(),
+        usn: document.getElementById('usn').value.trim().toUpperCase(),
+        college: document.getElementById('college').value.trim(),
+        branch: document.getElementById('branch').value.trim(),
+        year: document.getElementById('year').value
+      };
 
-            } catch (err) {
-                console.error(err);
-                alertBox.textContent = `Error: ${err.message || 'Server connection failed'}`;
-                alertBox.classList.remove('hidden');
-                
-                // Reset submit button state
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Start Interview Session →';
-            }
+      try {
+        const response = await fetch('/api/student/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
-    </script>
+
+        const data = await response.json();
+
+        if (response.ok && data.sessionId) {
+          // Store details in localStorage
+          localStorage.setItem('currentSessionId', data.sessionId);
+          localStorage.setItem('studentName', payload.studentName);
+          localStorage.setItem('studentUsn', payload.usn);
+          localStorage.setItem('studentCollege', payload.college);
+          localStorage.setItem('studentBranch', payload.branch);
+          
+          window.location.href = '/student_introduction.html';
+        } else {
+          errorBox.textContent = '⚠️ ' + (data.error || 'Failed to register. Please try again.');
+          errorBox.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Proceed to Setup →';
+        }
+      } catch (err) {
+        errorBox.textContent = '⚠️ Network error. Please check your connection.';
+        errorBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Proceed to Setup →';
+      }
+    });
+  </script>
 </body>
 </html>

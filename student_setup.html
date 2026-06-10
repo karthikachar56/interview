@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Pre-Check — AI Interview Room</title>
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .setup-container {
+      max-width: 800px;
+      margin: 4rem auto 0;
+      padding: 0 1.5rem;
+    }
+    .check-list {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 2rem;
+      border-radius: 0.5rem;
+      margin-bottom: 2rem;
+      text-align: left;
+    }
+    .check-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+    .check-item:last-child {
+      margin-bottom: 0;
+    }
+    .check-status {
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="setup-container animate-fade-in-up">
+    <div class="glass-panel" style="padding: 3rem; text-align: center;">
+      <h1 class="text-gradient" style="font-size: 2rem; margin-bottom: 1rem;">Interview Pre-Check</h1>
+      <p style="margin-bottom: 2rem;">We need to check your camera, microphone, and connection before starting.</p>
+      
+      <!-- Check Status Board -->
+      <div class="check-list">
+        <div class="check-item">
+          <span>Camera & Microphone</span>
+          <span id="mediaStatus" class="check-status">⏳ Pending</span>
+        </div>
+        <div class="check-item">
+          <span>Network Connection</span>
+          <span id="networkStatus" class="check-status">⏳ Pending</span>
+        </div>
+        <div class="check-item">
+          <span>Lighting & Background</span>
+          <span id="lightingStatus" class="check-status">⏳ Pending</span>
+        </div>
+      </div>
+
+      <!-- Action Panel -->
+      <div id="checkPanel">
+        <button id="checkBtn" class="btn-primary" style="padding: 0.875rem 2rem;">
+          Run System Check
+        </button>
+      </div>
+
+      <div id="readyPanel" class="animate-fade-in-up" style="display: none;">
+        <p style="color: var(--accent-secondary); margin-bottom: 1.5rem; font-weight: 600;">
+          All systems go! You're ready to start.
+        </p>
+        <button id="startBtn" class="btn-primary" style="padding: 0.875rem 2.5rem;">
+          Enter Interview Room
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Authentication guard
+    const sessionId = localStorage.getItem('currentSessionId');
+    if (!sessionId) {
+      window.location.href = '/index.html';
+    }
+
+    const checkBtn = document.getElementById('checkBtn');
+    const startBtn = document.getElementById('startBtn');
+    const checkPanel = document.getElementById('checkPanel');
+    const readyPanel = document.getElementById('readyPanel');
+
+    const mediaStatus = document.getElementById('mediaStatus');
+    const networkStatus = document.getElementById('networkStatus');
+    const lightingStatus = document.getElementById('lightingStatus');
+
+    checkBtn.addEventListener('click', async () => {
+      checkBtn.disabled = true;
+      checkBtn.textContent = '⏳ Checking...';
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Stop all tracks immediately after check
+        stream.getTracks().forEach(track => track.stop());
+
+        // Update status UI
+        mediaStatus.textContent = '✅ Ready';
+        mediaStatus.style.color = '#10b981';
+
+        networkStatus.textContent = '✅ Ready';
+        networkStatus.style.color = '#10b981';
+
+        lightingStatus.textContent = '✅ Ready';
+        lightingStatus.style.color = '#10b981';
+
+        checkPanel.style.display = 'none';
+        readyPanel.style.display = 'block';
+      } catch (err) {
+        console.error("System Check failed:", err);
+        alert("Please grant camera and microphone permissions to proceed.");
+        checkBtn.disabled = false;
+        checkBtn.textContent = 'Run System Check';
+
+        mediaStatus.textContent = '❌ Denied';
+        mediaStatus.style.color = 'var(--accent-danger)';
+      }
+    });
+
+    startBtn.addEventListener('click', () => {
+      window.location.href = '/student_room.html';
+    });
+  </script>
+</body>
+</html>

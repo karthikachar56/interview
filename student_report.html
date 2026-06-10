@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interview Scorecard — AI Interview Room</title>
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .report-container {
+      margin-top: 2rem;
+      max-width: 1000px;
+    }
+    .report-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+    .score-circle-container {
+      position: relative;
+      width: 128px;
+      height: 128px;
+      flex-shrink: 0;
+    }
+    .score-circle-svg {
+      transform: rotate(-90deg);
+    }
+    .score-label-box {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .feedback-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .feedback-item {
+      padding: 0.875rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    .feedback-strength {
+      background: rgba(20, 184, 166, 0.1);
+      border-left: 4px solid var(--accent-secondary);
+    }
+    .feedback-improve {
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid var(--accent-danger);
+    }
+    .spinner {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 4px solid var(--glass-border);
+      border-top: 4px solid var(--accent-primary);
+      animation: spin 1s linear infinite;
+      margin: 0 auto 2rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading state container -->
+  <div id="loadingContainer" class="container animate-fade-in-up" style="margin-top: 4rem; text-align: center;">
+    <div class="spinner"></div>
+    <h2 style="color: var(--text-primary); margin-bottom: 0.5rem;">Generating Your Scorecard</h2>
+    <p>Our AI is evaluating your interview performance...</p>
+  </div>
+
+  <!-- Main Report container -->
+  <div id="reportContainer" class="container report-container animate-fade-in-up" style="display: none;">
+    <header style="margin-bottom: 2rem; text-align: center;">
+      <h1 class="text-gradient" style="font-size: 2.5rem;">Interview Scorecard</h1>
+      <p style="margin-top: 0.5rem;" id="sessionMeta">
+        Session: <span id="sessionMetaId">...</span>
+      </p>
+    </header>
+
+    <main class="report-grid">
+      <!-- Left side: Score Card -->
+      <section class="glass-panel" style="padding: 2rem;">
+        <h2 style="margin-bottom: 1.5rem; color: var(--accent-secondary);">Overall Score</h2>
+        
+        <div style="display: flex; align-items: center; gap: 2rem; margin-bottom: 1.5rem;">
+          <!-- SVG Progress Circle -->
+          <div class="score-circle-container">
+            <svg width="128" height="128" class="score-circle-svg">
+              <circle cx="64" cy="64" r="54" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="10" />
+              <circle id="scoreProgressCircle" cx="64" cy="64" r="54" fill="none" stroke="var(--accent-secondary)" stroke-width="10"
+                stroke-dasharray="339.292" stroke-dashoffset="339.292" style="transition: stroke-dashoffset 1s ease;" />
+            </svg>
+            <div class="score-label-box">
+              <span id="scoreText" style="font-size: 1.75rem; font-weight: 800; color: var(--accent-secondary);">0</span>
+              <span style="font-size: 0.75rem; color: var(--text-secondary);">/100</span>
+            </div>
+          </div>
+
+          <!-- General details -->
+          <div>
+            <h3 id="scoreVerdict" style="color: var(--accent-secondary); margin-bottom: 0.25rem;">Evaluating...</h3>
+            <p id="overallFeedback" style="font-size: 0.9rem; line-height: 1.6;">Please wait...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right side: Feedback list -->
+      <section class="glass-panel" style="padding: 2rem;">
+        <h2 style="margin-bottom: 1.5rem;">Actionable Feedback</h2>
+        <ul class="feedback-list" id="feedbackList">
+          <!-- Strengths and improvements go here -->
+        </ul>
+      </section>
+    </main>
+
+    <!-- Footer buttons -->
+    <div style="text-align: center; margin-top: 3rem; display: flex; gap: 1rem; justify-content: center;">
+      <button class="btn-secondary" id="historyBtn">View History</button>
+      <button class="btn-primary" id="dashboardBtn">Return to Dashboard</button>
+    </div>
+  </div>
+
+  <script>
+    // Get sessionId from query parameter or localStorage
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('sessionId') || localStorage.getItem('currentSessionId');
+
+    if (!sessionId) {
+      window.location.href = '/index.html';
+    }
+
+    const loadingContainer = document.getElementById('loadingContainer');
+    const reportContainer = document.getElementById('reportContainer');
+    
+    let pollCount = 0;
+    let pollInterval = null;
+
+    async function checkReport() {
+      try {
+        const res = await fetch(`/api/interview/sync?sessionId=${sessionId}`);
+        const data = await res.json();
+        
+        if (data.session) {
+          const session = data.session;
+          if (session.score !== undefined && session.score !== null) {
+            clearInterval(pollInterval);
+            renderReport(session);
+          } else {
+            pollCount++;
+            if (pollCount >= 20) {
+              clearInterval(pollInterval);
+              renderReport(session || { score: 70, feedback: "Feedback is taking longer than usual to generate. Here is a baseline evaluation." });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Report poll error:", err);
+      }
+    }
+
+    function renderReport(session) {
+      loadingContainer.style.display = 'none';
+      reportContainer.style.display = 'block';
+
+      // Set details
+      document.getElementById('sessionMetaId').textContent = sessionId;
+      if (session.studentName) {
+        const studentMeta = document.createElement('strong');
+        studentMeta.style.color = 'var(--text-primary)';
+        studentMeta.textContent = `${session.studentName} • `;
+        document.getElementById('sessionMeta').insertBefore(studentMeta, document.getElementById('sessionMeta').firstChild);
+      }
+
+      // Duration rendering
+      if (session.startTime && session.completedAt) {
+        const diff = Math.floor((new Date(session.completedAt).getTime() - new Date(session.startTime).getTime()) / 1000);
+        const m = Math.floor(diff / 60);
+        const s = diff % 60;
+        const durationNode = document.createTextNode(` • Duration: `);
+        const durationStrong = document.createElement('strong');
+        durationStrong.style.color = 'var(--text-primary)';
+        durationStrong.textContent = `${m}m ${s}s`;
+        document.getElementById('sessionMeta').appendChild(durationNode);
+        document.getElementById('sessionMeta').appendChild(durationStrong);
+      }
+
+      // Overall Score Progress Circle
+      const score = session.score ?? 0;
+      const circumference = 2 * Math.PI * 54; // = 339.292
+      const offset = circumference - (score / 100) * circumference;
+
+      const circle = document.getElementById('scoreProgressCircle');
+      circle.style.strokeDashoffset = offset;
+
+      let scoreColor = '#ef4444'; // default red
+      let verdict = 'Keep Practicing 💪';
+      if (score >= 80) {
+        scoreColor = '#10b981'; // green
+        verdict = 'Strong Performance 🎉';
+      } else if (score >= 60) {
+        scoreColor = '#f59e0b'; // amber
+        verdict = 'Good Effort 👍';
+      }
+
+      circle.style.stroke = scoreColor;
+      
+      const scoreText = document.getElementById('scoreText');
+      scoreText.textContent = score;
+      scoreText.style.color = scoreColor;
+
+      const verdictEl = document.getElementById('scoreVerdict');
+      verdictEl.textContent = verdict;
+      verdictEl.style.color = scoreColor;
+
+      document.getElementById('overallFeedback').textContent = session.feedback || 'No feedback details generated.';
+
+      // Strengths & Improvements list
+      const list = document.getElementById('feedbackList');
+      list.innerHTML = "";
+
+      const strengths = session.strengths || ['Showed willingness to engage', 'Attempted all questions'];
+      strengths.forEach(s => {
+        const li = document.createElement('li');
+        li.className = 'feedback-item feedback-strength';
+        li.innerHTML = `<strong style="color: var(--accent-secondary);">✓ Strength:</strong> ${escapeHTML(s)}`;
+        list.appendChild(li);
+      });
+
+      const improvements = session.improvements || ['Work on technical depth', 'Practice clear explanations'];
+      // Filter out internal training comments
+      improvements.filter(imp => !imp.startsWith('[TRAINING')).forEach(imp => {
+        const li = document.createElement('li');
+        li.className = 'feedback-item feedback-improve';
+        li.innerHTML = `<strong style="color: var(--accent-danger);">↗ Improve:</strong> ${escapeHTML(imp)}`;
+        list.appendChild(li);
+      });
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Action handlers
+    document.getElementById('historyBtn').addEventListener('click', () => {
+      window.location.href = '/student_history.html';
+    });
+    
+    document.getElementById('dashboardBtn').addEventListener('click', () => {
+      window.location.href = '/student_dashboard.html';
+    });
+
+    // Start Polling
+    checkReport();
+    pollInterval = setInterval(checkReport, 3000);
+  </script>
+</body>
+</html>

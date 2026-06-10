@@ -2,8 +2,6 @@
 
 ## Overview
 This project includes:
-- `index.html`: candidate entrance page
-- `interview_room.html`: interview room page
 - `admin.html`: admin portal connected to MongoDB
 - `server/index.js`: Express backend for storing entrance data and serving static pages
 - `docker-compose.yml`: MongoDB service definition
@@ -33,8 +31,7 @@ This starts:
 docker compose exec app npm run init-db
 ```
 
-4. Open the app in your browser:
-- Candidate page: `http://localhost:3000/index.html`
+4. Open the admin portal in your browser:
 - Admin page: `http://localhost:3000/admin.html`
 
 ```bash
@@ -47,11 +44,9 @@ npm run init-db
 npm start
 ```
 
-5. Open the app:
-- Candidate page: `http://localhost:3000/index.html`
+5. Open the admin portal:
 - Admin page: `http://localhost:3000/admin.html`
 
 ## Notes
 - The admin portal loads saved candidate entries from `/api/entrances`.
-- Selecting `See` opens the `interview_room.html` page for that candidate.
-- The entrance page saves a record in MongoDB before redirecting to the interview room.
+- Selecting `See` opens the Admin Control Room within the admin portal to monitor the live preview and draft sync for that candidate.

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practice History — AI Interview Room</title>
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .history-header {
+      margin-bottom: 3rem;
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .history-list {
+      display: grid;
+      gap: 1.25rem;
+    }
+    .history-card {
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .card-left {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .rank-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(139,92,246,0.15);
+      border: 2px solid var(--accent-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--accent-primary);
+      flex-shrink: 0;
+    }
+    .meta-row {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    .card-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .score-summary {
+      text-align: right;
+    }
+    .score-summary-val {
+      font-size: 1.75rem;
+      font-weight: 800;
+    }
+    .score-summary-lbl {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--glass-border);
+      border-top: 3px solid var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container animate-fade-in-up">
+    <!-- Header -->
+    <header class="history-header">
+      <div>
+        <h1 class="text-gradient" style="font-size: 2.5rem;">Practice History</h1>
+        <p id="subheading">Review your past mock interviews.</p>
+      </div>
+      <button class="btn-secondary" id="backBtn">← Dashboard</button>
+    </header>
+
+    <!-- Loading Panel -->
+    <div id="loadingPanel" style="text-align: center; padding: 4rem; color: var(--text-secondary);">
+      <div class="spinner"></div>
+      Loading history...
+    </div>
+
+    <!-- Empty State Panel -->
+    <div id="emptyPanel" class="glass-panel" style="padding: 4rem; text-align: center; display: none;">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">🎙️</div>
+      <h2 style="color: var(--text-primary); margin-bottom: 0.5rem;">No interviews yet</h2>
+      <p style="margin-bottom: 2rem;">Complete your first AI mock interview to see your history.</p>
+      <button class="btn-primary" id="startFirstBtn">Start Your First Interview</button>
+    </div>
+
+    <!-- Sessions List Panel -->
+    <div id="listPanel" class="history-list" style="display: none;">
+      <!-- History items will be inserted here -->
+    </div>
+  </div>
+
+  <script>
+    // Authentication guard
+    const usn = localStorage.getItem('studentUsn');
+    const studentName = localStorage.getItem('studentName') || 'Student';
+
+    if (!usn) {
+      window.location.href = '/index.html';
+    }
+
+    document.getElementById('subheading').textContent = `${studentName}'s past interviews`;
+
+    const loadingPanel = document.getElementById('loadingPanel');
+    const emptyPanel = document.getElementById('emptyPanel');
+    const listPanel = document.getElementById('listPanel');
+
+    // Fetch Completed Sessions
+    fetch(`/api/student/sessions?usn=${encodeURIComponent(usn)}`)
+      .then(res => res.json())
+      .then(data => {
+        loadingPanel.style.display = 'none';
+        
+        const sessions = data.sessions || [];
+        if (sessions.length === 0) {
+          emptyPanel.style.display = 'block';
+        } else {
+          listPanel.innerHTML = "";
+          
+          sessions.forEach((session, index) => {
+            const card = document.createElement('div');
+            card.className = 'glass-panel history-card';
+
+            // Duration calculation
+            let durationStr = '—';
+            if (session.startTime && session.completedAt) {
+              const diff = Math.floor((new Date(session.completedAt).getTime() - new Date(session.startTime).getTime()) / 1000);
+              durationStr = `${Math.floor(diff / 60)}m ${diff % 60}s`;
+            }
+
+            // Date formatting
+            let dateStr = '—';
+            if (session.completedAt) {
+              dateStr = new Date(session.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            }
+
+            // Score styling
+            const scoreVal = session.score;
+            let scoreColor = 'var(--text-secondary)';
+            let label = 'No score';
+            
+            if (scoreVal !== undefined && scoreVal !== null) {
+              if (scoreVal >= 80) {
+                scoreColor = '#10b981';
+                label = 'Excellent';
+              } else if (scoreVal >= 60) {
+                scoreColor = '#f59e0b';
+                label = 'Good';
+              } else {
+                scoreColor = '#ef4444';
+                label = 'Needs Work';
+              }
+            }
+
+            card.innerHTML = `
+              <div class="card-left">
+                <!-- Rank index badge -->
+                <div class="rank-badge">
+                  #${sessions.length - index}
+                </div>
+                <div>
+                  <h3 style="font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text-primary);">
+                    ${escapeHTML(session.round || 'Technical')} Interview
+                  </h3>
+                  <div class="meta-row">
+                    <span>📅 ${dateStr}</span>
+                    <span>⏱ ${durationStr}</span>
+                    ${session.branch ? `<span>🎓 ${escapeHTML(session.branch)}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+              <div class="card-right">
+                <div class="score-summary">
+                  <div class="score-summary-val" style="color: ${scoreColor}">
+                    ${scoreVal !== undefined && scoreVal !== null ? `${scoreVal}/100` : '—'}
+                  </div>
+                  <div class="score-summary-lbl">${label}</div>
+                </div>
+                <button class="btn-secondary" onclick="viewReport('${session.sessionId}')" style="padding: 0.5rem 1rem; font-size: 0.875rem; white-space: nowrap;">
+                  View Report →
+                </button>
+              </div>
+            `;
+            listPanel.appendChild(card);
+          });
+          listPanel.style.display = 'grid';
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load history list:", err);
+        loadingPanel.textContent = "Failed to load practice history.";
+      });
+
+    function escapeHTML(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function viewReport(id) {
+      window.location.href = `/student_report.html?sessionId=${encodeURIComponent(id)}`;
+    }
+
+    // Navigation Click listeners
+    document.getElementById('backBtn').addEventListener('click', () => {
+      window.location.href = '/student_dashboard.html';
+    });
+
+    document.getElementById('startFirstBtn').addEventListener('click', () => {
+      window.location.href = '/student_introduction.html';
+    });
+  </script>
+</body>
+</html>
