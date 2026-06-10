@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Mock Interview — Candidate Portal</title>
+    <!-- Modern Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS (approved via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .glowing-button {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+            transition: all 0.3s ease;
+        }
+        .glowing-button:hover {
+            box-shadow: 0 0 25px rgba(99, 102, 241, 0.75);
+            transform: translateY(-2px);
+        }
+        .glowing-border:focus-within {
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+        }
+    </style>
+</head>
+<body class="text-slate-100 flex flex-col justify-between p-4 sm:p-8">
+    <!-- Header -->
+    <header class="w-full max-w-6xl mx-auto flex justify-between items-center py-4">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl sm:text-3xl">🤖</span>
+            <span class="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">AI Interview Platform</span>
+        </div>
+        <div>
+            <a href="/admin.html" class="text-xs sm:text-sm text-slate-400 hover:text-white transition duration-200 border border-slate-700/60 rounded-full px-4 py-1.5 bg-slate-900/30 hover:bg-slate-900/80">
+                Admin Panel →
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Registration Card -->
+    <main class="flex-1 flex items-center justify-center py-8">
+        <div class="glass-panel w-full max-w-md p-6 sm:p-10 rounded-3xl animate-fade-in-up">
+            <div class="text-center mb-8">
+                <div class="inline-flex p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-3xl mb-4">
+                    📝
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Candidate Entrance</h1>
+                <p class="text-slate-400 text-xs sm:text-sm mt-2">Enter your credentials to start your mock interview</p>
+            </div>
+
+            <form id="entranceForm" class="space-y-5">
+                <!-- Name -->
+                <div>
+                    <label for="name" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Full Name</label>
+                    <div class="glowing-border flex items-center bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-2.5 transition">
+                        <span class="text-slate-500 mr-2 text-sm">👤</span>
+                        <input type="text" id="name" placeholder="John Doe" required 
+                            class="bg-transparent w-full text-sm text-white focus:outline-none placeholder-slate-600">
+                    </div>
+                </div>
+
+                <!-- Branch -->
+                <div>
+                    <label for="branch" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Academic Branch</label>
+                    <div class="glowing-border flex items-center bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-2.5 transition">
+                        <span class="text-slate-500 mr-2 text-sm">🎓</span>
+                        <select id="branch" required 
+                            class="bg-transparent w-full text-sm text-white focus:outline-none appearance-none cursor-pointer">
+                            <option value="" disabled selected class="bg-slate-950">Select your branch...</option>
+                            <option value="Computer Science & Engineering" class="bg-slate-950">Computer Science & Engineering</option>
+                            <option value="Information Science & Engineering" class="bg-slate-950">Information Science & Engineering</option>
+                            <option value="Electronics & Communication" class="bg-slate-950">Electronics & Communication</option>
+                            <option value="Electrical & Electronics" class="bg-slate-950">Electrical & Electronics</option>
+                            <option value="Information Technology" class="bg-slate-950">Information Technology</option>
+                            <option value="Mechanical Engineering" class="bg-slate-950">Mechanical Engineering</option>
+                            <option value="Civil Engineering" class="bg-slate-950">Civil Engineering</option>
+                        </select>
+                        <span class="text-slate-500 pointer-events-none text-[10px]">▼</span>
+                    </div>
+                </div>
+
+                <!-- Technical Field -->
+                <div>
+                    <label for="field" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Target Job Profile</label>
+                    <div class="glowing-border flex items-center bg-slate-950/40 border border-slate-800 rounded-xl px-4 py-2.5 transition">
+                        <span class="text-slate-500 mr-2 text-sm">💻</span>
+                        <select id="field" required 
+                            class="bg-transparent w-full text-sm text-white focus:outline-none appearance-none cursor-pointer">
+                            <option value="" disabled selected class="bg-slate-950">Select profile field...</option>
+                            <option value="Fullstack Web Developer" class="bg-slate-950">Fullstack Web Developer</option>
+                            <option value="Frontend Web Developer" class="bg-slate-950">Frontend Web Developer</option>
+                            <option value="Backend Developer (Node.js/Python)" class="bg-slate-950">Backend Developer (Node.js/Python)</option>
+                            <option value="Python Software Engineer" class="bg-slate-950">Python Software Engineer</option>
+                            <option value="Java System Developer" class="bg-slate-950">Java System Developer</option>
+                            <option value="C++ Core Systems Engineer" class="bg-slate-950">C++ Core Systems Engineer</option>
+                            <option value="Data Scientist / Analyst" class="bg-slate-950">Data Scientist / Analyst</option>
+                        </select>
+                        <span class="text-slate-500 pointer-events-none text-[10px]">▼</span>
+                    </div>
+                </div>
+
+                <!-- Alert Message -->
+                <div id="alertBox" class="hidden text-xs rounded-xl p-3.5 border border-red-500/20 bg-red-500/10 text-red-400">
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn" class="glowing-button w-full text-white font-bold py-3.5 rounded-xl transition text-sm flex justify-center items-center gap-2">
+                    Start Interview Session →
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full text-center text-xs text-slate-500 py-4 border-t border-slate-900/80">
+        AI Mock Interview Room • Built with Node.js & WebSockets
+    </footer>
+
+    <script>
+        const form = document.getElementById('entranceForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const alertBox = document.getElementById('alertBox');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // UI state: loading
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating Session...
+            `;
+            alertBox.classList.add('hidden');
+
+            const payload = {
+                name: document.getElementById('name').value.trim(),
+                branch: document.getElementById('branch').value,
+                field: document.getElementById('field').value
+            };
+
+            try {
+                const response = await fetch('/enter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || 'Failed to initialize session');
+                }
+
+                // Redirect to the interview room page
+                const queryParams = new URLSearchParams({
+                    id: data.id,
+                    name: payload.name,
+                    branch: payload.branch,
+                    field: payload.field
+                });
+                window.location.href = `/interview_room.html?${queryParams.toString()}`;
+
+            } catch (err) {
+                console.error(err);
+                alertBox.textContent = `Error: ${err.message || 'Server connection failed'}`;
+                alertBox.classList.remove('hidden');
+                
+                // Reset submit button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Start Interview Session →';
+            }
+        });
+    </script>
+</body>
+</html>

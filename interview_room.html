@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Mock Interview — Live Room</title>
+    <!-- Modern Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .editor-textarea {
+            background: rgba(5, 8, 22, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #e2e8f0;
+            font-family: 'Fira Code', monospace;
+            resize: none;
+        }
+        .editor-textarea:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
+        }
+        .terminal {
+            background: #020617;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            font-family: 'Fira Code', monospace;
+        }
+        .mic-active {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(2, 6, 23, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+    </style>
+</head>
+<body class="text-slate-100 flex flex-col justify-between min-h-screen p-3 sm:p-5">
+
+    <!-- Header Section -->
+    <header class="w-full max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 py-3 px-4 glass-panel rounded-2xl mb-4">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">⚡</span>
+            <div>
+                <span class="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">AI Interview Room</span>
+                <span id="fieldBadge" class="ml-2 text-[10px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-semibold px-2 py-0.5 rounded-full">—</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 text-xs sm:text-sm">
+            <div class="flex items-center gap-2">
+                <span class="text-slate-400">Candidate:</span>
+                <span id="candidateName" class="font-semibold text-white">—</span>
+            </div>
+            <div class="flex items-center gap-2 border-l border-slate-800 pl-4">
+                <span class="text-slate-400">Status:</span>
+                <div class="flex items-center gap-1.5">
+                    <span id="wsStatusDot" class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                    <span id="wsStatusText" class="font-medium text-slate-300">Connecting...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Live Workspace -->
+    <main class="flex-1 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch mb-4">
+        
+        <!-- Left Side: IDE / Code Editor (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col glass-panel rounded-2xl p-4 overflow-hidden min-h-[500px]">
+            <!-- Editor Controls -->
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-slate-300">Editor</span>
+                    <select id="langSelect" class="bg-slate-950 border border-slate-800 rounded-lg text-xs font-semibold px-2.5 py-1.5 text-white outline-none cursor-pointer focus:border-indigo-500">
+                        <option value="javascript">JavaScript (Node)</option>
+                        <option value="python">Python 3</option>
+                        <option value="java">Java (Main)</option>
+                        <option value="cpp">C++ (g++)</option>
+                        <option value="c">C (gcc)</option>
+                    </select>
+                </div>
+                <div>
+                    <button id="runCodeBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition duration-200 flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+                        <span>▶</span> Run Code
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Text Editor Area -->
+            <div class="flex-1 relative flex flex-col mb-3">
+                <textarea id="codeEditor" class="editor-textarea flex-1 w-full p-4 rounded-xl text-sm font-mono focus:outline-none custom-scrollbar" placeholder="// Write your code here..."></textarea>
+            </div>
+
+            <!-- Styled Console Terminal -->
+            <div class="h-44 flex flex-col rounded-xl overflow-hidden terminal border border-slate-900">
+                <div class="bg-slate-950 px-4 py-1.5 flex justify-between items-center border-b border-slate-900">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Console Output</span>
+                    <button onclick="clearConsole()" class="text-[10px] text-slate-400 hover:text-white font-mono">Clear</button>
+                </div>
+                <div id="consoleLog" class="flex-1 p-3 overflow-y-auto text-xs text-slate-300 font-mono space-y-1 custom-scrollbar">
+                    <div class="text-slate-500">// Run code to see the execution results here.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Side: Captures, Voice Notes, Metadata (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            
+            <!-- Live Preview Card (Camera/Screen streaming) -->
+            <div class="glass-panel rounded-2xl p-4 flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm font-semibold text-slate-300">Live Preview Feed</span>
+                    <span id="feedTypeBadge" class="text-[10px] bg-slate-900 border border-slate-800 text-slate-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">OFFLINE</span>
+                </div>
+                
+                <!-- Video Container -->
+                <div class="bg-slate-950 aspect-video rounded-xl overflow-hidden relative border border-slate-900 flex items-center justify-center">
+                    <video id="liveVideo" class="w-full h-full object-cover hidden" autoplay muted playsinline></video>
+                    <div id="videoPlaceholder" class="text-slate-600 flex flex-col items-center gap-1.5">
+                        <span class="text-3xl">📷</span>
+                        <span class="text-xs">No active camera or screen feed</span>
+                    </div>
+                    <canvas id="snapshotCanvas" class="hidden"></canvas>
+                </div>
+
+                <!-- Feed Toggle Controls -->
+                <div class="grid grid-cols-3 gap-2.5 mt-3">
+                    <button id="startCamBtn" class="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-semibold text-xs py-2 rounded-lg transition">
+                        🎥 Camera
+                    </button>
+                    <button id="startScreenBtn" class="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-semibold text-xs py-2 rounded-lg transition">
+                        🖥️ Screen
+                    </button>
+                    <button id="stopFeedBtn" disabled class="bg-red-950/20 border border-red-900/40 text-red-500/50 font-semibold text-xs py-2 rounded-lg cursor-not-allowed transition">
+                        ⏹ Stop
+                    </button>
+                </div>
+            </div>
+
+            <!-- Voice Transcription & Live Draft Sync Card -->
+            <div class="glass-panel rounded-2xl p-4 flex-1 flex flex-col min-h-[250px]">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm font-semibold text-slate-300">Live Speech & Notes</span>
+                    <div class="flex items-center gap-1.5">
+                        <span id="micStatusDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+                        <span id="micStatusText" class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Mic Off</span>
+                    </div>
+                </div>
+
+                <!-- Web Speech transcription text box / drafts -->
+                <div class="flex-1 flex flex-col relative mb-3">
+                    <textarea id="draftTextarea" class="editor-textarea flex-1 w-full p-3.5 rounded-xl text-sm focus:outline-none custom-scrollbar" 
+                        placeholder="Type notes or click the microphone to speak. Everything written here is streamed live to the examiner..."></textarea>
+                </div>
+
+                <!-- Audio controls -->
+                <div>
+                    <button id="micToggleBtn" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+                        <span id="micIcon">🎙️</span> <span id="micBtnText">Enable Voice Typing</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full text-center text-xs text-slate-500 py-3 border-t border-slate-900/80 mt-2">
+        AI Mock Interview Room • Platform Engine v1.0.0
+    </footer>
+
+    <!-- WebSocket & Media Stream Logic -->
+    <script>
+        // Extract URL Parameters
+        const params = new URLSearchParams(window.location.search);
+        const sessionId = params.get('id');
+        const name = params.get('name') || 'Candidate';
+        const branch = params.get('branch') || 'General';
+        const field = params.get('field') || 'Fullstack Developer';
+
+        // Update UI info
+        document.getElementById('candidateName').textContent = name;
+        document.getElementById('fieldBadge').textContent = field;
+
+        // WebSocket Setup
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host || 'localhost:3000';
+        const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+        let socket = null;
+        let wsReconnectTimer = null;
+
+        function connectWebSocket() {
+            if (!sessionId) {
+                console.error("No Session ID provided in URL parameters.");
+                updateStatus('Disconnected (Missing ID)', false);
+                return;
+            }
+
+            socket = new WebSocket(wsUrl);
+
+            socket.addEventListener('open', () => {
+                console.log('WebSocket connection opened');
+                updateStatus('Connected', true);
+                
+                // Register candidate
+                socket.send(JSON.stringify({
+                    type: 'register',
+                    role: 'candidate',
+                    id: sessionId
+                }));
+                
+                // Send initial draft sync
+                syncDraft();
+            });
+
+            socket.addEventListener('close', () => {
+                console.warn('WebSocket connection closed');
+                updateStatus('Disconnected', false);
+                // Attempt Reconnect
+                wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+            });
+
+            socket.addEventListener('error', (err) => {
+                console.error('WebSocket encountered error', err);
+                socket.close();
+            });
+        }
+
+        function updateStatus(text, healthy) {
+            const dot = document.getElementById('wsStatusDot');
+            const txt = document.getElementById('wsStatusText');
+            if (dot && txt) {
+                dot.className = `w-2.5 h-2.5 rounded-full ${healthy ? 'bg-emerald-500' : 'bg-red-500'}`;
+                txt.textContent = text;
+            }
+        }
+
+        // Live Feed Capturing
+        const video = document.getElementById('liveVideo');
+        const placeholder = document.getElementById('videoPlaceholder');
+        const startCamBtn = document.getElementById('startCamBtn');
+        const startScreenBtn = document.getElementById('startScreenBtn');
+        const stopFeedBtn = document.getElementById('stopFeedBtn');
+        const feedBadge = document.getElementById('feedTypeBadge');
+        
+        let localStream = null;
+        let captureTimer = null;
+        let activeStreamType = null; // 'cam' or 'screen'
+
+        async function startCamera() {
+            stopFeed();
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, frameRate: 15 },
+                    audio: false
+                });
+                video.srcObject = localStream;
+                video.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                
+                activeStreamType = 'cam';
+                feedBadge.textContent = 'CAMERA';
+                feedBadge.className = 'text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider';
+                
+                startCamBtn.disabled = true;
+                startScreenBtn.disabled = false;
+                stopFeedBtn.disabled = false;
+                stopFeedBtn.className = 'bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-2 rounded-lg transition shadow-md shadow-red-600/10';
+
+                startSnapshotStreaming();
+            } catch (err) {
+                console.error('Error opening camera:', err);
+                alert('Could not start Camera. Please verify permissions.');
+            }
+        }
+
+        async function startScreenShare() {
+            stopFeed();
+            try {
+                localStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { frameRate: 10 },
+                    audio: false
+                });
+                video.srcObject = localStream;
+                video.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+
+                activeStreamType = 'screen';
+                feedBadge.textContent = 'SCREEN';
+                feedBadge.className = 'text-[10px] bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider';
+
+                startCamBtn.disabled = false;
+                startScreenBtn.disabled = true;
+                stopFeedBtn.disabled = false;
+                stopFeedBtn.className = 'bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-2 rounded-lg transition shadow-md shadow-red-600/10';
+
+                // Monitor screen stream stop (e.g. click "Stop sharing" on browser toolbar)
+                localStream.getVideoTracks()[0].addEventListener('ended', () => {
+                    stopFeed();
+                });
+
+                startSnapshotStreaming();
+            } catch (err) {
+                console.error('Error starting screen share:', err);
+            }
+        }
+
+        function stopFeed() {
+            stopSnapshotStreaming();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            video.srcObject = null;
+            video.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+
+            activeStreamType = null;
+            feedBadge.textContent = 'OFFLINE';
+            feedBadge.className = 'text-[10px] bg-slate-900 border border-slate-800 text-slate-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider';
+
+            startCamBtn.disabled = false;
+            startScreenBtn.disabled = false;
+            stopFeedBtn.disabled = true;
+            stopFeedBtn.className = 'bg-red-950/20 border border-red-900/40 text-red-500/50 font-semibold text-xs py-2 rounded-lg cursor-not-allowed transition';
+        }
+
+        function startSnapshotStreaming() {
+            stopSnapshotStreaming();
+            captureTimer = setInterval(sendSnapshot, 1500);
+        }
+
+        function stopSnapshotStreaming() {
+            if (captureTimer) {
+                clearInterval(captureTimer);
+                captureTimer = null;
+            }
+        }
+
+        function sendSnapshot() {
+            if (!socket || socket.readyState !== 1 || !localStream) return;
+
+            const canvas = document.getElementById('snapshotCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Set drawing sizes (Scale down to 400px width to fit Vercel payload constraints)
+            const w = 400;
+            const h = Math.round((video.videoHeight / video.videoWidth) * w) || 300;
+            canvas.width = w;
+            canvas.height = h;
+
+            try {
+                ctx.drawImage(video, 0, 0, w, h);
+                const base64 = canvas.toDataURL('image/jpeg', 0.5); // 50% JPEG compression
+                
+                socket.send(JSON.stringify({
+                    type: 'preview',
+                    previewType: activeStreamType,
+                    image: base64
+                }));
+            } catch (err) {
+                console.warn('Snapshot capture failed:', err);
+            }
+        }
+
+        startCamBtn.addEventListener('click', startCamera);
+        startScreenBtn.addEventListener('click', startScreenShare);
+        stopFeedBtn.addEventListener('click', stopFeed);
+
+
+        // Live Draft / Speech Syncing
+        const draftTextarea = document.getElementById('draftTextarea');
+        
+        function syncDraft() {
+            if (!socket || socket.readyState !== 1) return;
+            const text = draftTextarea.value;
+            socket.send(JSON.stringify({
+                type: 'draft',
+                text: text
+            }));
+        }
+
+        // Debounced sync for keyup events
+        let draftDebounceTimer = null;
+        draftTextarea.addEventListener('input', () => {
+            clearTimeout(draftDebounceTimer);
+            draftDebounceTimer = setTimeout(syncDraft, 400);
+        });
+
+
+        // Web Speech Recognition
+        const micToggleBtn = document.getElementById('micToggleBtn');
+        const micStatusDot = document.getElementById('micStatusDot');
+        const micStatusText = document.getElementById('micStatusText');
+        const micBtnText = document.getElementById('micBtnText');
+        const micIcon = document.getElementById('micIcon');
+        
+        let recognition = null;
+        let isMicRecording = false;
+
+        function setupSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.warn('Speech Recognition not supported in this browser.');
+                micToggleBtn.disabled = true;
+                micBtnText.textContent = 'Speech to Text Unsupported';
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isMicRecording = true;
+                micStatusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+                micStatusText.textContent = 'Listening';
+                micStatusText.className = 'text-[10px] text-red-500 font-bold uppercase tracking-wider';
+                micBtnText.textContent = 'Stop Voice Typing';
+                micIcon.textContent = '🛑';
+                micToggleBtn.classList.add('mic-active', 'border-red-500/20', 'bg-red-950/20', 'text-red-400');
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    draftTextarea.value += finalTranscript;
+                    syncDraft();
+                }
+            };
+
+            recognition.onerror = (err) => {
+                console.error('Speech recognition error:', err.error);
+                if (err.error === 'not-allowed') {
+                    alert('Microphone permission denied.');
+                    stopSpeechRecognition();
+                }
+            };
+
+            recognition.onend = () => {
+                // If it ends abruptly but we still expect it to record, restart
+                if (isMicRecording) {
+                    recognition.start();
+                } else {
+                    stopSpeechRecognition();
+                }
+            };
+        }
+
+        function stopSpeechRecognition() {
+            isMicRecording = false;
+            if (recognition) {
+                try { recognition.stop(); } catch(e){}
+            }
+            micStatusDot.className = 'w-2 h-2 rounded-full bg-slate-600';
+            micStatusText.textContent = 'Mic Off';
+            micStatusText.className = 'text-[10px] text-slate-400 font-bold uppercase tracking-wider';
+            micBtnText.textContent = 'Enable Voice Typing';
+            micIcon.textContent = '🎙️';
+            micToggleBtn.className = 'w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-1.5';
+        }
+
+        micToggleBtn.addEventListener('click', () => {
+            if (!recognition) {
+                setupSpeechRecognition();
+            }
+            if (isMicRecording) {
+                stopSpeechRecognition();
+            } else {
+                try {
+                    recognition.start();
+                } catch(err) {
+                    console.error('Failed to start speech recognition:', err);
+                }
+            }
+        });
+
+
+        // Compiler / Code Execution Runner
+        const runCodeBtn = document.getElementById('runCodeBtn');
+        const langSelect = document.getElementById('langSelect');
+        const codeEditor = document.getElementById('codeEditor');
+        const consoleLog = document.getElementById('consoleLog');
+
+        // Language boilerplate snippets
+        const boileplates = {
+            javascript: `// Javascript Execution\nconsole.log("Hello, World!");\n`,
+            python: `# Python 3 Execution\nprint("Hello, World!")\n`,
+            java: `// Java Execution\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}\n`,
+            cpp: `// C++ Execution\n#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}\n`,
+            c: `// C Execution\n#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}\n`
+        };
+
+        // Initialize editor with JS boilerplate
+        codeEditor.value = boileplates.javascript;
+
+        langSelect.addEventListener('change', () => {
+            const val = langSelect.value;
+            if (boileplates[val]) {
+                codeEditor.value = boileplates[val];
+            }
+        });
+
+        function clearConsole() {
+            consoleLog.innerHTML = '<div class="text-slate-500">// Console cleared.</div>';
+        }
+
+        runCodeBtn.addEventListener('click', async () => {
+            runCodeBtn.disabled = true;
+            runCodeBtn.innerHTML = `<span>⏳</span> Compiling...`;
+            
+            consoleLog.innerHTML = `<div class="text-indigo-400 font-bold animate-pulse">Running compilation job...</div>`;
+
+            const payload = {
+                language: langSelect.value,
+                code: codeEditor.value
+            };
+
+            try {
+                const res = await fetch('/api/compile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                
+                consoleLog.innerHTML = ''; // Clear running status
+
+                if (data.ok) {
+                    const output = data.output || 'No output produced.';
+                    const formatted = output.replace(/\n/g, '<br>');
+                    consoleLog.innerHTML = `<div class="text-emerald-400 font-semibold mb-1">Execution successful:</div>
+                                            <div class="text-slate-200 whitespace-pre-wrap">${formatted}</div>`;
+                } else {
+                    const output = data.output || '';
+                    const error = data.error || 'Unknown execution error.';
+                    consoleLog.innerHTML = `<div class="text-red-400 font-semibold mb-1">Compilation Error:</div>
+                                            <div class="text-red-300 font-mono text-[11px] bg-red-950/20 border border-red-900/40 p-2.5 rounded-lg whitespace-pre-wrap mb-2">${error}</div>
+                                            ${output ? `<div class="text-slate-500 font-semibold mb-1">Partial Console Output:</div><div class="text-slate-400 whitespace-pre-wrap">${output.replace(/\n/g, '<br>')}</div>` : ''}`;
+                }
+            } catch (err) {
+                console.error(err);
+                consoleLog.innerHTML = `<div class="text-red-400 font-semibold">Connection Error:</div>
+                                        <div class="text-red-300">Failed to connect to the compile server. Check if your backend is running.</div>`;
+            } finally {
+                runCodeBtn.disabled = false;
+                runCodeBtn.innerHTML = `<span>▶</span> Run Code`;
+            }
+        });
+
+        // Initialize connection
+        connectWebSocket();
+    </script>
+</body>
+</html>
