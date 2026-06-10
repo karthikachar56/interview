@@ -147,12 +147,6 @@
   </div>
 
   <script>
-    // Redirect back to select round if not done yet
-    const selectedRound = localStorage.getItem('selectedRound');
-    if (!selectedRound) {
-      window.location.href = '/index.html';
-    }
-
     // Redirect to dashboard if student is already logged in
     const storedUsn = localStorage.getItem('studentUsn');
     if (storedUsn) {
@@ -195,23 +189,7 @@
           localStorage.setItem('studentBranch', payload.branch);
           localStorage.setItem('studentYear', payload.year);
 
-          // Sync the pre-selected round
-          const roundName = localStorage.getItem('selectedRound') || 'Technical Round';
-          const syncRes = await fetch('/api/interview/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: data.sessionId, round: roundName })
-          });
-
-          if (syncRes.ok) {
-            window.location.href = '/student_setup.html';
-          } else {
-            errorBox.textContent = '⚠️ Registration succeeded but failed to initialize selected round. Redirecting to selection...';
-            errorBox.style.display = 'block';
-            setTimeout(() => {
-              window.location.href = '/index.html';
-            }, 3000);
-          }
+          window.location.href = '/student_introduction.html';
         } else {
           errorBox.textContent = '⚠️ ' + (data.error || 'Failed to register. Please try again.');
           errorBox.style.display = 'block';

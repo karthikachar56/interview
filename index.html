@@ -3,19 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Assessment Selection — AI Interview Room</title>
+  <title>AI Interview Room — Next-Generation Mock Interview Platform</title>
   <link rel="stylesheet" href="/student.css">
   <style>
-    .intro-container {
-      max-width: 850px;
-      margin: 3rem auto;
-      padding: 0 1.5rem;
+    .landing-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 3rem;
+      border-bottom: 1px solid var(--glass-border);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(2, 6, 23, 0.8);
+      z-index: 10;
     }
-    .intro-header {
+    .hero-section {
       text-align: center;
-      margin-bottom: 2.5rem;
+      padding: 6rem 2rem 4rem;
+      max-width: 900px;
+      margin: 0 auto;
     }
-    .badge {
+    .hero-badge {
       display: inline-block;
       padding: 0.375rem 1rem;
       border-radius: 2rem;
@@ -24,210 +34,161 @@
       color: var(--accent-primary);
       font-size: 0.85rem;
       font-weight: 600;
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
     }
-    .intro-grid {
+    .hero-title {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.03em;
+    }
+    .hero-desc {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto 3rem;
+      line-height: 1.7;
+    }
+    .features-section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 2rem 6rem;
+    }
+    .features-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.25rem;
-      margin-bottom: 2.5rem;
+      gap: 1.5rem;
     }
-    .round-card {
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
+    .feature-card {
+      padding: 1.75rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
     }
-    .round-card:hover {
+    .feature-card:hover {
       transform: translateY(-2px);
       border-color: var(--accent-secondary);
-      background: rgba(255, 255, 255, 0.05);
     }
-    .round-card.selected {
-      border: 2px solid var(--accent-primary);
-      background: rgba(139, 92, 246, 0.1);
-    }
-    .round-card.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .actions-footer {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      align-items: center;
+    .cta-section {
+      text-align: center;
+      padding: 4rem 2rem;
       border-top: 1px solid var(--glass-border);
-      padding-top: 2rem;
     }
-    .status-text {
-      color: var(--accent-secondary);
-      font-size: 0.9rem;
-      font-weight: 600;
-      animation: pulse-bg 1.5s infinite;
-      display: none;
+    .landing-footer {
+      text-align: center;
+      padding: 1.5rem;
+      border-top: 1px solid var(--glass-border);
+      color: var(--text-secondary);
+      font-size: 0.8rem;
     }
   </style>
 </head>
 <body>
-  <div class="intro-container animate-fade-in-up">
-    <div class="glass-panel" style="padding: 3rem;">
-      <!-- Header -->
-      <div class="intro-header">
-        <div class="badge">🎓 Assessment Selection</div>
-        <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem;">
-          Welcome, <span id="studentName">Candidate</span>!
-        </h1>
-        <p style="color: var(--text-secondary); font-size: 1.05rem; max-width: 600px; margin: 0 auto;">
-          Please select the mock interview round you wish to practice today.
-        </p>
-      </div>
-
-      <!-- Rounds Grid -->
-      <div class="intro-grid" id="roundsGrid">
-        <!-- Card 1 -->
-        <div class="glass-panel round-card" data-round="Basic Introduction">
-          <div style="font-size: 1.75rem;">👋</div>
-          <h3 style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">1. Basic Introduction</h3>
-          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-            Practice presenting yourself. Focuses on your background, achievements, interest areas, and goals.
-          </p>
-        </div>
-
-        <!-- Card 2 -->
-        <div class="glass-panel round-card" data-round="Aptitude Round">
-          <div style="font-size: 1.75rem;">🧮</div>
-          <h3 style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">2. Aptitude Round</h3>
-          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-            Test your logical reasoning, mathematics, logic, probability, and analytical puzzle-solving.
-          </p>
-        </div>
-
-        <!-- Card 3 -->
-        <div class="glass-panel round-card" data-round="Technical Round">
-          <div style="font-size: 1.75rem;">💻</div>
-          <h3 style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">3. Technical Round</h3>
-          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-            Deep technical dive. Systems engineering, design patterns, performance optimization, and tools.
-          </p>
-        </div>
-
-        <!-- Card 4 -->
-        <div class="glass-panel round-card" data-round="HR Round">
-          <div style="font-size: 1.75rem;">🤝</div>
-          <h3 style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">4. HR Round</h3>
-          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
-            Behavioral assessment. Focuses on stress handling, team collaboration, conflicts, and company fit.
-          </p>
-        </div>
-      </div>
-
-      <!-- Footer Actions -->
-      <div class="actions-footer">
-        <p id="statusText" class="status-text">⏳ Initializing practice round...</p>
-        <button class="btn-secondary" id="dashboardBtn" style="padding: 0.75rem 2rem; font-size: 0.95rem;">
-          🚪 Go to Dashboard
-        </button>
-      </div>
+  <!-- Nav Bar -->
+  <nav class="landing-nav">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <span style="font-size: 1.5rem;">🤖</span>
+      <span style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary);">AI Interview Room</span>
     </div>
-  </div>
+    <div style="display: flex; gap: 1rem;">
+      <a href="/student_dashboard.html" class="btn-secondary" style="padding: 0.5rem 1.25rem; font-size: 0.9rem;">Student Portal</a>
+      <a href="/admin_login.html" class="btn-primary" style="padding: 0.5rem 1.25rem; font-size: 0.9rem;">Admin Login</a>
+    </div>
+  </nav>
 
-  <script>
-    const name = localStorage.getItem('studentName') || 'Candidate';
-    document.getElementById('studentName').textContent = name;
+  <main>
+    <!-- Hero Section -->
+    <section class="hero-section animate-fade-in-up">
+      <div class="hero-badge">
+        ✨ Powered by Google Gemini 2.5 Flash
+      </div>
+      <h1 class="hero-title">
+        <span class="text-gradient">Ace Your Next</span>
+        <br>Technical Interview
+      </h1>
+      <p class="hero-desc">
+        Practice with an AI interviewer that adapts to your answers, gives real-time feedback, and scores your performance — all in your browser.
+      </p>
+      <div style="display: flex; gap: 1rem; justifyContent: center; justify-content: center; flex-wrap: wrap;">
+        <a href="/student_registration.html" class="btn-primary" style="padding: 1rem 2rem; font-size: 1.05rem;">
+          Start Free Interview →
+        </a>
+        <a href="/student_dashboard.html" class="btn-secondary" style="padding: 1rem 2rem; font-size: 1.05rem;">
+          View Dashboard
+        </a>
+      </div>
+    </section>
 
-    const cards = document.querySelectorAll('.round-card');
-    const statusText = document.getElementById('statusText');
-    const dashboardBtn = document.getElementById('dashboardBtn');
-    let saving = false;
+    <!-- Features Grid -->
+    <section class="features-section">
+      <div class="features-grid">
+        <!-- Feature 1 -->
+        <div class="glass-panel feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🤖</div>
+          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">AI-Powered Interviews</h3>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Gemini AI conducts the interview, evaluates your answers in real-time, and asks intelligent follow-up questions.
+          </p>
+        </div>
 
-    // Show dashboard button only if already registered
-    const storedUsn = localStorage.getItem('studentUsn');
-    if (!storedUsn) {
-      dashboardBtn.style.display = 'none';
-    }
+        <!-- Feature 2 -->
+        <div class="glass-panel feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🎙️</div>
+          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">Live Voice Transcription</h3>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Your answers are transcribed live using the Web Speech API. No typing needed — just speak naturally.
+          </p>
+        </div>
 
-    cards.forEach(card => {
-      card.addEventListener('click', async () => {
-        if (saving) return;
+        <!-- Feature 3 -->
+        <div class="glass-panel feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">📊</div>
+          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">Instant Scored Report</h3>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Get a detailed scorecard with strengths, areas for improvement, and actionable feedback after every session.
+          </p>
+        </div>
 
-        const roundName = card.getAttribute('data-round');
-        localStorage.setItem('selectedRound', roundName);
-        
-        // Highlight selection
-        cards.forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
+        <!-- Feature 4 -->
+        <div class="glass-panel feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">👁️</div>
+          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">Admin Observation</h3>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Interviewers can observe live sessions, take over the interview, and guide candidates via direct messaging.
+          </p>
+        </div>
 
-        saving = true;
-        statusText.style.display = 'block';
-        dashboardBtn.disabled = true;
-        cards.forEach(c => { if (c !== card) c.classList.add('disabled'); });
+        <!-- Feature 5 -->
+        <div class="glass-panel feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🏆</div>
+          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">College Leaderboard</h3>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Compare your performance with peers in your institution and track your progress over multiple interviews.
+          </p>
+        </div>
 
-        // Check if candidate is already registered
-        if (storedUsn) {
-          // Returning user: Create a new session automatically
-          try {
-            const payload = {
-              studentName: localStorage.getItem('studentName'),
-              usn: storedUsn,
-              college: localStorage.getItem('studentCollege') || '',
-              branch: localStorage.getItem('studentBranch') || '',
-              year: localStorage.getItem('studentYear') || '4th Year'
-            };
+        <!-- Feature 6 -->
+        <div class="glass-panel feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">⚙️</div>
+          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">Customizable AI</h3>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Admins can configure the AI personality, question topics, difficulty level, and scoring rubric to match any role.
+          </p>
+        </div>
+      </div>
+    </section>
 
-            const regRes = await fetch('/api/student/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
+    <!-- Call to Action -->
+    <section class="cta-section">
+      <h2 style="font-size: 2rem; margin-bottom: 1rem; color: var(--text-primary);">Ready to practice?</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 2rem;">It takes 30 seconds to register and start your first AI interview.</p>
+      <a href="/student_registration.html" class="btn-primary" style="padding: 1rem 2.5rem; font-size: 1.1rem;">
+        Get Started — It's Free →
+      </a>
+    </section>
+  </main>
 
-            const regData = await regRes.json();
-            if (regRes.ok && regData.sessionId) {
-              const sessionId = regData.sessionId;
-              localStorage.setItem('currentSessionId', sessionId);
-
-              // Sync the selected round
-              const syncRes = await fetch('/api/interview/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, round: roundName })
-              });
-
-              if (syncRes.ok) {
-                window.location.href = '/student_setup.html';
-              } else {
-                alert('Failed to set round. Please try again.');
-                resetUI();
-              }
-            } else {
-              alert('Failed to start a new session. Please try again.');
-              resetUI();
-            }
-          } catch (err) {
-            console.error(err);
-            alert('Network error. Please try again.');
-            resetUI();
-          }
-        } else {
-          // New candidate: Redirect to registration form
-          window.location.href = '/student_registration.html';
-        }
-      });
-    });
-
-    function resetUI() {
-      saving = false;
-      statusText.style.display = 'none';
-      dashboardBtn.disabled = false;
-      cards.forEach(c => {
-        c.classList.remove('selected', 'disabled');
-      });
-    }
-
-    dashboardBtn.addEventListener('click', () => {
-      window.location.href = '/student_dashboard.html';
-    });
-  </script>
+  <footer class="landing-footer">
+    AI Interview Room • Built with Node.js & Google Gemini
+  </footer>
 </body>
 </html>
