@@ -169,16 +169,17 @@ let mongoUnavailable = false;
 let backupEntrances = [];
 let backupSessions = [];
 
-async function loadFallback() {
+function loadFallback() {
+  const fsSync = require('fs');
   try {
-    const content = await fs.readFile(fallbackPath, 'utf8');
+    const content = fsSync.readFileSync(fallbackPath, 'utf8');
     backupEntrances = JSON.parse(content);
   } catch (err) {
     if (err.code !== 'ENOENT') console.warn('Failed to load fallback data', err);
     backupEntrances = [];
   }
   try {
-    const content = await fs.readFile(sessionsFallbackPath, 'utf8');
+    const content = fsSync.readFileSync(sessionsFallbackPath, 'utf8');
     backupSessions = JSON.parse(content);
   } catch (err) {
     if (err.code !== 'ENOENT') console.warn('Failed to load fallback sessions data', err);
@@ -285,7 +286,7 @@ function getAdminAuth(req) {
 }
 
 async function startServer() {
-  await loadFallback();
+  loadFallback();
   console.log(`Loaded fallback entrances: ${backupEntrances.length}`);
   console.log(`Loaded fallback sessions: ${backupSessions.length}`);
 
@@ -1033,10 +1034,21 @@ app.get('/api/preview/:id', async (req, res) => {
     ws.on('error', () => cleanupClient(ws));
   });
 
-  server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+  if (require.main === module) {
+    server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+  }
 }
 
-startServer().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+// Export the app for Vercel Serverless Function deployment
+module.exports = app;
+
+if (require.main === module) {
+  startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+} else {
+  startServer().catch(err => {
+    console.error('Failed to initialize server routes:', err);
+  });
+}
