@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session Monitor — Admin Portal</title>
+  <link rel="stylesheet" href="/student.css">
+  <link rel="stylesheet" href="/admin.css">
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+  <style>
+    .admin-room-wrapper {
+      padding: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div style="padding: 0 1.5rem; margin-bottom: 2rem;">
+        <div style="width: 40px; height: 40px; border-radius: 0.5rem; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-bottom: 0.75rem;">🛡️</div>
+        <h1 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; padding: 0;">Admin Portal</h1>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">Interview Management</p>
+      </div>
+
+      <nav class="sidebar-nav" style="flex: 1;">
+        <a href="/admin_live_interviews.html" class="nav-link active" id="navLive">
+          <span style="font-size: 1rem;">📡</span>
+          Live Interviews
+        </a>
+        <a href="/admin_students.html" class="nav-link" id="navStudents">
+          <span style="font-size: 1rem;">👥</span>
+          Students
+        </a>
+        <a href="/admin_ai_config.html" class="nav-link" id="navConfig">
+          <span style="font-size: 1rem;">🤖</span>
+          AI Configuration
+        </a>
+        <a href="/admin_audit_logs.html" class="nav-link" id="navLogs">
+          <span style="font-size: 1rem;">📋</span>
+          Audit Logs
+        </a>
+      </nav>
+
+      <div style="padding: 1rem; border-top: 1px solid var(--glass-border); margin-top: auto;">
+        <button onclick="handleLogout()" style="width: 100%; padding: 0.625rem 1rem; border-radius: 0.5rem; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(239,68,68,0.15)'" onmouseleave="this.style.background='transparent'">
+          🚪 Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="admin-main" style="padding: 0;">
+      <div class="admin-room-wrapper animate-fade-in-up">
+        <!-- Top Half -->
+        <div class="admin-room-top">
+          <!-- Webcam & Screen streams panel -->
+          <div class="room-panel">
+            <div class="room-panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Interviewing Person Screen and Video</span>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button id="retryCallBtn" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; background: rgba(255,255,255,0.1); border: none; border-radius: 0.25rem; color: white; cursor: pointer;">
+                  ↻ Retry
+                </button>
+                <span id="connectionStatus" style="font-size: 0.75rem; color: #f59e0b; text-transform: none;">
+                  Connecting...
+                </span>
+              </div>
+            </div>
+            <div class="room-panel-content" style="flex-direction: row; gap: 1rem;">
+              <div class="video-box" style="flex: 1;">
+                <div class="video-label">Camera</div>
+                <video id="videoRef" autoplay playsinline muted></video>
+              </div>
+              <div class="video-box" style="flex: 1;">
+                <div class="video-label">Screen</div>
+                <video id="screenRef" autoplay playsinline muted></video>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Avatar Control Panel -->
+          <div class="room-panel">
+            <div class="room-panel-header">Admin AI - Realistic Model Control</div>
+            <div class="room-panel-content" style="align-items: center; justify-content: center;">
+              <div class="ai-avatar-placeholder">
+                <div class="ai-orb"></div>
+              </div>
+              <div style="margin-top: 1rem; textAlign: center;">
+                <h3 style="margin: 0; color: var(--text-primary);" id="aiStatusLabel">AI Interviewer is Active</h3>
+                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem;">
+                  Asking questions through the model by action and voice caught.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Half -->
+        <div class="admin-room-bottom" style="margin-top: 1rem;">
+          <!-- Col 1: Voice-to-Text Transcript -->
+          <div class="room-panel">
+            <div class="room-panel-header">Person voice converted into text</div>
+            <div class="room-panel-content" id="voiceTranscriptBox" style="font-size: 0.85rem;">
+              <span id="waitingSpeechLabel" style="color: var(--text-secondary); font-style: italic;">Waiting for speech...</span>
+              <div ref="transcriptEnd" id="transcriptEnd"></div>
+            </div>
+          </div>
+
+          <!-- Col 2: Q&A Control -->
+          <div class="room-panel">
+            <div class="room-panel-header">Asking questions through the AI</div>
+            <div class="room-panel-content" style="display: grid; grid-template-rows: auto 1fr; gap: 1rem;">
+              <!-- Input box -->
+              <div style="display: flex; gap: 0.5rem;">
+                <input
+                  type="text"
+                  id="takeoverQuestion"
+                  placeholder="Type your question..."
+                  style="flex: 1; padding: 0.5rem; border-radius: 0.25rem; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: white; font-size: 0.85rem; outline: none;"
+                />
+                <button id="sendQuestionBtn" class="btn-primary" style="padding: 0.5rem 0.75rem; font-size: 0.85rem;">Send</button>
+              </div>
+              
+              <!-- Answering container -->
+              <div style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 0.5rem; overflow-y: auto;">
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase;">Person text answers</div>
+                <p id="latestAnswerText" style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.5;">
+                  <span style="font-style: italic; opacity: 0.5;">No answers yet...</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Col 3: Vally metrics -->
+          <div class="room-panel">
+            <div class="room-panel-header">Vally Calculation</div>
+            <div class="room-panel-content">
+              <div class="metric-row">
+                <span class="metric-label">Confidence:</span>
+                <span class="metric-value" id="valConfidence">8/10</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Vocabulary:</span>
+                <span class="metric-value" id="valVocabulary">7/10</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Answering:</span>
+                <span class="metric-value" id="valAnswering">8/10</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Nervousness:</span>
+                <span class="metric-value" id="valNervousness">3/10</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Face express:</span>
+                <span class="metric-value" id="valFace">8/10</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Question understand chk:</span>
+                <span class="metric-value" id="valUnderstand">9/10</span>
+              </div>
+              <div style="margin-top: auto; padding-top: 1rem; border-top: 2px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+                <strong style="color: white;">Overall Score</strong>
+                <span id="valOverall" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-primary);">82/100</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Col 4: AI Training options -->
+          <div class="room-panel" style="border: 1px solid var(--accent-primary); box-shadow: 0 0 20px rgba(139,92,246,0.1);">
+            <div class="room-panel-header" style="color: var(--accent-primary); border-color: rgba(139,92,246,0.3);">Training the AI</div>
+            <div class="room-panel-content">
+              <ul style="font-size: 0.85rem; color: var(--text-secondary); padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+                <li>How to calculate parameters</li>
+                <li>How to give the values</li>
+                <li>Which question must be asked now</li>
+                <li>Train from the AI or train the AI</li>
+              </ul>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: auto;">
+                <button id="writeFeedbackBtn" class="btn-secondary" style="font-size: 0.85rem; padding: 0.5rem;">✍️ Write</button>
+                <button id="uploadFeedbackBtn" class="btn-primary" style="font-size: 0.85rem; padding: 0.5rem;">📤 Upload</button>
+              </div>
+
+              <button id="resumeAIBtn" class="btn-secondary" style="display: none; width: 100%; marginTop: 0.5rem; background: rgba(16,185,129,0.1); color: #10b981; borderColor: rgba(16,185,129,0.3)">
+                ▶️ Resume Auto AI
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    async function handleLogout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin_login.html';
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('sessionId');
+
+    if (!sessionId) {
+      alert("Missing sessionId parameter");
+      window.location.href = '/admin_live_interviews.html';
+    }
+
+    // Dynamic metrics simulation
+    const metrics = {
+      confidence: 8,
+      vocabulary: 7,
+      answering: 8,
+      nervousness: 3,
+      faceExpression: 8,
+      questionUnderstand: 9,
+      overallScore: 82
+    };
+
+    function updateMetricsUI() {
+      document.getElementById('valConfidence').textContent = `${metrics.confidence}/10`;
+      document.getElementById('valVocabulary').textContent = `${metrics.vocabulary}/10`;
+      document.getElementById('valAnswering').textContent = `${metrics.answering}/10`;
+      
+      const nervousnessEl = document.getElementById('valNervousness');
+      nervousnessEl.textContent = `${metrics.nervousness}/10`;
+      nervousnessEl.style.color = metrics.nervousness > 6 ? '#ef4444' : '#f59e0b';
+      
+      document.getElementById('valFace').textContent = `${metrics.faceExpression}/10`;
+      document.getElementById('valUnderstand').textContent = `${metrics.questionUnderstand}/10`;
+      document.getElementById('valOverall').textContent = `${metrics.overallScore}/100`;
+    }
+
+    // Jiggle metrics
+    setInterval(() => {
+      metrics.confidence = Math.min(10, Math.max(0, metrics.confidence + (Math.random() > 0.5 ? 1 : -1)));
+      metrics.nervousness = Math.min(10, Math.max(0, metrics.nervousness + (Math.random() > 0.5 ? 1 : -1)));
+      updateMetricsUI();
+    }, 5000);
+
+    updateMetricsUI();
+
+    // DOM References
+    const videoRef = document.getElementById('videoRef');
+    const screenRef = document.getElementById('screenRef');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const retryCallBtn = document.getElementById('retryCallBtn');
+    
+    const aiStatusLabel = document.getElementById('aiStatusLabel');
+    const resumeAIBtn = document.getElementById('resumeAIBtn');
+    
+    const voiceTranscriptBox = document.getElementById('voiceTranscriptBox');
+    const waitingSpeechLabel = document.getElementById('waitingSpeechLabel');
+    const transcriptEnd = document.getElementById('transcriptEnd');
+    
+    const takeoverQuestion = document.getElementById('takeoverQuestion');
+    const sendQuestionBtn = document.getElementById('sendQuestionBtn');
+    const latestAnswerText = document.getElementById('latestAnswerText');
+
+    const writeFeedbackBtn = document.getElementById('writeFeedbackBtn');
+    const uploadFeedbackBtn = document.getElementById('uploadFeedbackBtn');
+
+    // PeerJS call
+    let peer = null;
+    function makeCall() {
+      connectionStatus.textContent = 'Calling student...';
+      connectionStatus.style.color = '#f59e0b';
+
+      // Silent canvas dummy stream
+      const canvas = document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      const dummyStream = canvas.captureStream(0);
+
+      try {
+        const call = peer.call(`student-${sessionId}`, dummyStream);
+        
+        call.on('stream', (remoteStream) => {
+          connectionStatus.textContent = '🟢 Live Feed Connected';
+          connectionStatus.style.color = '#10b981';
+          videoRef.srcObject = remoteStream;
+          videoRef.play().catch(e => console.error("Video play error:", e));
+        });
+
+        call.on('error', () => {
+          connectionStatus.textContent = '⚠️ Call Error';
+          connectionStatus.style.color = 'var(--accent-danger)';
+        });
+        call.on('close', () => {
+          connectionStatus.textContent = '⚠️ Call Closed';
+          connectionStatus.style.color = 'var(--accent-danger)';
+        });
+      } catch (err) {
+        console.error('Call failed:', err);
+        connectionStatus.textContent = '⚠️ Call Failed to Start';
+        connectionStatus.style.color = 'var(--accent-danger)';
+      }
+    }
+
+    function initPeer() {
+      try {
+        peer = new Peer(`admin-${sessionId}`);
+        peer.on('open', () => {
+          setTimeout(makeCall, 2000);
+        });
+
+        // Screen share call answering
+        peer.on('call', (call) => {
+          if (call.metadata && call.metadata.type === 'screen') {
+            call.answer();
+            call.on('stream', (screen) => {
+              screenRef.srcObject = screen;
+              screenRef.play().catch(e => console.error("Screen play error:", e));
+            });
+          }
+        });
+
+        peer.on('error', (err) => {
+          console.error("PeerJS error:", err);
+          connectionStatus.textContent = '⚠️ PeerJS Error';
+          connectionStatus.style.color = 'var(--accent-danger)';
+        });
+      } catch (err) {
+        console.error('Peer init failed:', err);
+        connectionStatus.textContent = '⚠️ Init Error';
+        connectionStatus.style.color = 'var(--accent-danger)';
+      }
+    }
+
+    retryCallBtn.addEventListener('click', makeCall);
+
+    // Syncing candidate data
+    let lastStudentAnswer = '';
+    let renderedMessages = [];
+
+    async function pollSync() {
+      try {
+        const res = await fetch(`/api/interview/sync?sessionId=${sessionId}`);
+        const data = await res.json();
+        
+        if (data.session) {
+          const s = data.session;
+          const adminMode = s.mode === 'admin';
+          
+          aiStatusLabel.textContent = `AI Interviewer is ${adminMode ? 'Paused' : 'Active'}`;
+          resumeAIBtn.style.display = adminMode ? 'block' : 'none';
+
+          if (s.studentAnswer && s.studentAnswer !== lastStudentAnswer) {
+            lastStudentAnswer = s.studentAnswer;
+            latestAnswerText.textContent = s.studentAnswer;
+          }
+
+          // Render voice converted transcript (role student plus others)
+          if (s.transcript && s.transcript.length > 0) {
+            waitingSpeechLabel.style.display = 'none';
+            
+            // Check if transcript count changed
+            if (s.transcript.length !== renderedMessages.length) {
+              // Clear previous text
+              const elements = voiceTranscriptBox.querySelectorAll('.transcript-line');
+              elements.forEach(el => el.remove());
+
+              s.transcript.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = 'transcript-line';
+                div.style.padding = '0.5rem';
+                div.style.background = msg.role === 'student' ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.05)';
+                div.style.borderRadius = '0.25rem';
+                div.style.marginBottom = '0.5rem';
+                
+                const labelColor = msg.role === 'student' ? 'var(--accent-primary)' : 'var(--text-secondary)';
+                const label = msg.role === 'student' ? 'Student' : msg.role === 'ai' ? 'AI' : 'Admin';
+                
+                div.innerHTML = `<strong style="color: ${labelColor}">${label}: </strong> <span>${escapeHTML(msg.text)}</span>`;
+                voiceTranscriptBox.insertBefore(div, transcriptEnd);
+              });
+              renderedMessages = s.transcript;
+              transcriptEnd.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Poll sync failed:", err);
+      }
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Question actions
+    async function sendAdminQuestion() {
+      const question = takeoverQuestion.value.trim();
+      if (!question) return;
+
+      takeoverQuestion.value = '';
+
+      try {
+        await fetch('/api/interview/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, adminMessage: question, mode: 'admin', aiStatus: 'paused' })
+        });
+        
+        pollSync();
+      } catch (err) {
+        console.error("Failed to send takeover question:", err);
+      }
+    }
+
+    sendQuestionBtn.addEventListener('click', sendAdminQuestion);
+    takeoverQuestion.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        sendAdminQuestion();
+      }
+    });
+
+    resumeAIBtn.addEventListener('click', async () => {
+      try {
+        await fetch('/api/interview/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, mode: 'ai', aiStatus: 'active' })
+        });
+        pollSync();
+      } catch (err) {
+        console.error("Failed to resume auto AI:", err);
+      }
+    });
+
+    writeFeedbackBtn.addEventListener('click', () => {
+      window.location.href = `/admin_training.html?sessionId=${encodeURIComponent(sessionId)}`;
+    });
+
+    uploadFeedbackBtn.addEventListener('click', () => {
+      alert("Functionality to upload training file. Please write feedback instead.");
+    });
+
+    // Initializations
+    initPeer();
+    pollSync();
+    setInterval(pollSync, 3000);
+  </script>
+</body>
+</html>

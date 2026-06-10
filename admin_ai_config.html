@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Config — Admin Portal</title>
+  <link rel="stylesheet" href="/student.css">
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div style="padding: 0 1.5rem; margin-bottom: 2rem;">
+        <div style="width: 40px; height: 40px; border-radius: 0.5rem; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-bottom: 0.75rem;">🛡️</div>
+        <h1 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; padding: 0;">Admin Portal</h1>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">Interview Management</p>
+      </div>
+
+      <nav class="sidebar-nav" style="flex: 1;">
+        <a href="/admin_live_interviews.html" class="nav-link" id="navLive">
+          <span style="font-size: 1rem;">📡</span>
+          Live Interviews
+        </a>
+        <a href="/admin_students.html" class="nav-link" id="navStudents">
+          <span style="font-size: 1rem;">👥</span>
+          Students
+        </a>
+        <a href="/admin_ai_config.html" class="nav-link active" id="navConfig">
+          <span style="font-size: 1rem;">🤖</span>
+          AI Configuration
+        </a>
+        <a href="/admin_audit_logs.html" class="nav-link" id="navLogs">
+          <span style="font-size: 1rem;">📋</span>
+          Audit Logs
+        </a>
+      </nav>
+
+      <div style="padding: 1rem; border-top: 1px solid var(--glass-border); margin-top: auto;">
+        <button onclick="handleLogout()" style="width: 100%; padding: 0.625rem 1rem; border-radius: 0.5rem; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(239,68,68,0.15)'" onmouseleave="this.style.background='transparent'">
+          🚪 Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="admin-main">
+      <div style="max-width: 800px;">
+        <div style="margin-bottom: 2rem;">
+          <h2 style="color: var(--text-primary); margin-bottom: 0.5rem;">AI Interviewer Configuration</h2>
+          <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            Customize the AI interviewer's personality, focus areas, and evaluation criteria.
+            These instructions are injected into every interview session.
+          </p>
+        </div>
+
+        <!-- Info preview card -->
+        <div class="glass-panel" style="padding: 1.25rem; margin-bottom: 2rem; border-left: 3px solid var(--accent-primary)">
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.25rem;">🤖</span>
+            <strong style="color: var(--accent-primary);">AI Persona Preview</strong>
+          </div>
+          <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">
+            The instructions below will be given to Gemini as the <em>"trainer's critical instructions"</em> before
+            every interview. Changes take effect for the <strong>next interview session</strong> only.
+          </p>
+        </div>
+
+        <!-- Configuration Form -->
+        <form id="configForm">
+          <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <label style="color: var(--text-primary); font-weight: 600;">
+                Interviewer Instructions
+              </label>
+              <span id="charCount" style="font-size: 0.8rem; color: var(--text-secondary);">
+                0 characters
+              </span>
+            </div>
+
+            <div id="loadingText" style="height: 300px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+              Loading current config...
+            </div>
+
+            <textarea
+              id="instructionsText"
+              rows="14"
+              placeholder="Enter instructions for the AI interviewer..."
+              style="display: none; width: 100%; padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: white; font-size: 0.9rem; line-height: 1.7; resize: vertical; fontFamily: inherit; outline: none;"
+            ></textarea>
+          </div>
+
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <button type="submit" id="saveBtn" class="btn-primary" disabled style="padding: 0.75rem 1.5rem;">
+              💾 Save Instructions
+            </button>
+            <button type="button" id="resetBtn" class="btn-secondary" style="padding: 0.75rem 1.5rem;">
+              ↩ Reset to Default
+            </button>
+            <span id="savedBadge" style="display: none; color: #10b981; font-size: 0.875rem;">
+              ✓ Instructions saved! Active from the next session.
+            </span>
+            <span id="errorBadge" style="display: none; color: var(--accent-danger); font-size: 0.875rem;"></span>
+          </div>
+        </form>
+
+        <!-- Configuration Tips -->
+        <div style="margin-top: 2.5rem;">
+          <h3 style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">
+            Tips for Effective Instructions
+          </h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="glass-panel" style="padding: 1rem;">
+              <div style="margin-bottom: 0.5rem;">🎯 <strong style="color: var(--text-primary)">Be Specific</strong></div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Define exactly what topics to cover (e.g., "Focus on React hooks and async/await")</p>
+            </div>
+            <div class="glass-panel" style="padding: 1rem;">
+              <div style="margin-bottom: 0.5rem;">📊 <strong style="color: var(--text-primary)">Set the Tone</strong></div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Specify difficulty: "Target 3+ years experience" or "Focus on fresh graduates"</p>
+            </div>
+            <div class="glass-panel" style="padding: 1rem;">
+              <div style="margin-bottom: 0.5rem;">📝 <strong style="color: var(--text-primary)">Scoring Rubric</strong></div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Tell the AI what a good vs bad answer looks like for scoring accuracy</p>
+            </div>
+            <div class="glass-panel" style="padding: 1rem;">
+              <div style="margin-bottom: 0.5rem;">⏱️ <strong style="color: var(--text-primary)">Question Count</strong></div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Suggest how many questions to ask: "Ask 5-7 questions total covering different topics"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    async function handleLogout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin_login.html';
+    }
+
+    const DEFAULT_INSTRUCTIONS = `You are a professional software engineering interviewer at a top tech company. 
+You conduct technical interviews for software engineering roles.
+
+Guidelines:
+- Ask clear, concise technical questions appropriate for the candidate's level
+- Cover topics like data structures, algorithms, system design, and coding practices
+- Be encouraging but objective in your evaluation
+- After each answer, briefly acknowledge it and move to a logical follow-up
+- Maintain a professional but friendly tone throughout`;
+
+    const instructionsText = document.getElementById('instructionsText');
+    const loadingText = document.getElementById('loadingText');
+    const charCount = document.getElementById('charCount');
+    const saveBtn = document.getElementById('saveBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const savedBadge = document.getElementById('savedBadge');
+    const errorBadge = document.getElementById('errorBadge');
+    const form = document.getElementById('configForm');
+
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/admin/ai-config');
+        if (res.status === 401) {
+          window.location.href = '/admin_login.html';
+          return;
+        }
+
+        const data = await res.json();
+        
+        loadingText.style.display = 'none';
+        instructionsText.style.display = 'block';
+
+        instructionsText.value = data.instructions || DEFAULT_INSTRUCTIONS;
+        updateCharCount();
+        saveBtn.disabled = false;
+      } catch (err) {
+        console.error("Failed to load config:", err);
+        loadingText.textContent = "Failed to load current configuration.";
+      }
+    }
+
+    function updateCharCount() {
+      charCount.textContent = `${instructionsText.value.length} characters`;
+    }
+
+    instructionsText.addEventListener('input', updateCharCount);
+
+    resetBtn.addEventListener('click', () => {
+      instructionsText.value = DEFAULT_INSTRUCTIONS;
+      updateCharCount();
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      saveBtn.disabled = true;
+      saveBtn.textContent = '⏳ Saving...';
+      savedBadge.style.display = 'none';
+      errorBadge.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/ai-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ instructions: instructionsText.value })
+        });
+
+        if (!res.ok) throw new Error('Save failed');
+
+        savedBadge.style.display = 'inline';
+        setTimeout(() => {
+          savedBadge.style.display = 'none';
+        }, 3000);
+      } catch (err) {
+        errorBadge.textContent = '⚠️ Failed to save. Please try again.';
+        errorBadge.style.display = 'inline';
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Save Instructions';
+      }
+    });
+
+    loadConfig();
+  </script>
+</body>
+</html>

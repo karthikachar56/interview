@@ -273,10 +273,191 @@ function getQuestionsForRound(round) {
   return QUESTIONS_BY_ROUND[normalized || "Technical Round"];
 }
 
+function getAdminAuth(req) {
+  const rc = req.headers.cookie;
+  if (!rc) return false;
+  const list = {};
+  rc.split(';').forEach(cookie => {
+    const parts = cookie.split('=');
+    list[parts.shift().trim()] = decodeURI(parts.join('='));
+  });
+  return list['admin_auth'] === 'authenticated';
+}
+
 async function startServer() {
   await loadFallback();
   console.log(`Loaded fallback entrances: ${backupEntrances.length}`);
   console.log(`Loaded fallback sessions: ${backupSessions.length}`);
+
+  // Admin Endpoints
+  app.post('/api/admin/login', (req, res) => {
+    const { password } = req.body;
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    if (password !== adminPassword) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+    res.setHeader('Set-Cookie', 'admin_auth=authenticated; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800');
+    res.json({ success: true });
+  });
+
+  app.post('/api/admin/logout', (req, res) => {
+    res.setHeader('Set-Cookie', 'admin_auth=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+    res.json({ success: true });
+  });
+
+  app.get('/api/admin/sessions', async (req, res) => {
+    if (!getAdminAuth(req)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      if (mongoUnavailable) {
+        return res.json({ sessions: backupSessions });
+      }
+
+      const client = await connectDb();
+      if (client) {
+        const db = client.db(DB_NAME);
+        const sessions = await db.collection('interviewsessions').find().sort({ updatedAt: -1 }).toArray();
+        return res.json({ sessions });
+      }
+
+      res.json({ sessions: backupSessions });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch sessions' });
+    }
+  });
+
+  app.get('/api/admin/ai-config', async (req, res) => {
+    if (!getAdminAuth(req)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      if (mongoUnavailable) {
+        const configPath = path.join(__dirname, '..', 'db', 'fallback-aiconfig.json');
+        const content = await fs.readFile(configPath, 'utf8')
+          .then(JSON.parse)
+          .catch(() => ({ instructions: '' }));
+        return res.json({ instructions: content.instructions || '' });
+      }
+
+      const client = await connectDb();
+      if (client) {
+        const db = client.db(DB_NAME);
+        const config = await db.collection('aiconfigs').findOne();
+        return res.json({ instructions: config?.instructions || '' });
+      }
+
+      const configPath = path.join(__dirname, '..', 'db', 'fallback-aiconfig.json');
+      const content = await fs.readFile(configPath, 'utf8')
+        .then(JSON.parse)
+        .catch(() => ({ instructions: '' }));
+      res.json({ instructions: content.instructions || '' });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch AI config' });
+    }
+  });
+
+  app.post('/api/admin/ai-config', async (req, res) => {
+    if (!getAdminAuth(req)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { instructions } = req.body;
+    if (!instructions || typeof instructions !== 'string') {
+      return res.status(400).json({ error: 'Missing instructions' });
+    }
+
+    try {
+      if (mongoUnavailable) {
+        const configPath = path.join(__dirname, '..', 'db', 'fallback-aiconfig.json');
+        await fs.mkdir(path.dirname(configPath), { recursive: true });
+        await fs.writeFile(configPath, JSON.stringify({ instructions }, null, 2), 'utf8');
+        return res.json({ success: true });
+      }
+
+      const client = await connectDb();
+      if (client) {
+        const db = client.db(DB_NAME);
+        await db.collection('aiconfigs').updateOne(
+          {},
+          { $set: { instructions } },
+          { upsert: true }
+        );
+        return res.json({ success: true });
+      }
+
+      const configPath = path.join(__dirname, '..', 'db', 'fallback-aiconfig.json');
+      await fs.mkdir(path.dirname(configPath), { recursive: true });
+      await fs.writeFile(configPath, JSON.stringify({ instructions }, null, 2), 'utf8');
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to save AI config' });
+    }
+  });
+
+  app.post('/api/admin/training-feedback', async (req, res) => {
+    if (!getAdminAuth(req)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { sessionId, issueType, correction } = req.body;
+    if (!sessionId || !correction) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const note = `[TRAINING FEEDBACK - ${issueType}]: ${correction}`;
+
+    try {
+      if (mongoUnavailable) {
+        let session = backupSessions.find(s => s.sessionId === sessionId);
+        if (!session) {
+          session = { sessionId, mode: 'ai', status: 'in_progress', aiStatus: 'active', transcript: [], improvements: [], startTime: new Date() };
+          backupSessions.unshift(session);
+        }
+        if (!Array.isArray(session.improvements)) {
+          session.improvements = [];
+        }
+        session.improvements.push(note);
+        session.updatedAt = new Date();
+        await saveSessionsFallback();
+        return res.json({ success: true });
+      }
+
+      const client = await connectDb();
+      if (client) {
+        const db = client.db(DB_NAME);
+        await db.collection('interviewsessions').updateOne(
+          { sessionId },
+          {
+            $push: { improvements: note },
+            $set: { updatedAt: new Date() }
+          }
+        );
+        return res.json({ success: true });
+      }
+
+      let session = backupSessions.find(s => s.sessionId === sessionId);
+      if (!session) {
+        session = { sessionId, mode: 'ai', status: 'in_progress', aiStatus: 'active', transcript: [], improvements: [], startTime: new Date() };
+        backupSessions.unshift(session);
+      }
+      if (!Array.isArray(session.improvements)) {
+        session.improvements = [];
+      }
+      session.improvements.push(note);
+      session.updatedAt = new Date();
+      await saveSessionsFallback();
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Error saving training feedback:', err);
+      res.status(500).json({ error: 'Failed to save feedback' });
+    }
+  });
 
   // candidate login/register
   app.post('/api/student/register', async (req, res) => {

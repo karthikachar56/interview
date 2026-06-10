@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Logs — Admin Portal</title>
+  <link rel="stylesheet" href="/student.css">
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div style="padding: 0 1.5rem; margin-bottom: 2rem;">
+        <div style="width: 40px; height: 40px; border-radius: 0.5rem; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-bottom: 0.75rem;">🛡️</div>
+        <h1 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; padding: 0;">Admin Portal</h1>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">Interview Management</p>
+      </div>
+
+      <nav class="sidebar-nav" style="flex: 1;">
+        <a href="/admin_live_interviews.html" class="nav-link" id="navLive">
+          <span style="font-size: 1rem;">📡</span>
+          Live Interviews
+        </a>
+        <a href="/admin_students.html" class="nav-link" id="navStudents">
+          <span style="font-size: 1rem;">👥</span>
+          Students
+        </a>
+        <a href="/admin_ai_config.html" class="nav-link" id="navConfig">
+          <span style="font-size: 1rem;">🤖</span>
+          AI Configuration
+        </a>
+        <a href="/admin_audit_logs.html" class="nav-link active" id="navLogs">
+          <span style="font-size: 1rem;">📋</span>
+          Audit Logs
+        </a>
+      </nav>
+
+      <div style="padding: 1rem; border-top: 1px solid var(--glass-border); margin-top: auto;">
+        <button onclick="handleLogout()" style="width: 100%; padding: 0.625rem 1rem; border-radius: 0.5rem; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(239,68,68,0.15)'" onmouseleave="this.style.background='transparent'">
+          🚪 Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="admin-main">
+      <div class="glass-panel" style="padding: 2rem; flex: 1;">
+        <div style="margin-bottom: 1.5rem;">
+          <h2 style="color: var(--text-primary); margin-bottom: 0.25rem;">Audit Logs</h2>
+          <p style="color: var(--text-secondary); font-size: 0.875rem;">
+            Review all session events, admin overrides, and completions for compliance.
+          </p>
+        </div>
+
+        <div id="loadingText" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+          Loading audit trail...
+        </div>
+
+        <div id="emptyText" style="display: none; text-align: center; padding: 2rem; color: var(--text-secondary);">
+          No events recorded yet.
+        </div>
+
+        <div id="tableWrapper" style="display: none; overflow-x: auto;">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Event</th>
+                <th>Candidate</th>
+                <th>Session ID</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!-- Logs inserted dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    async function handleLogout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin_login.html';
+    }
+
+    const ACTION_TEXT_COLORS = {
+      'Session Started': '#93c5fd',
+      'Admin Takeover': '#fca5a5',
+      'Completed': '#5eead4',
+    };
+
+    function buildAuditLog(sessions) {
+      const log = [];
+
+      sessions.forEach(s => {
+        // Session started
+        log.push({
+          timestamp: s.startTime,
+          action: 'Session Started',
+          actionColor: 'rgba(59,130,246,0.2)',
+          candidate: `${s.studentName} (${s.usn || '—'})`,
+          sessionId: s.sessionId,
+          details: `AI interview session initiated.`,
+        });
+
+        // Admin takeover
+        if (s.mode === 'admin' || s.adminMessage) {
+          log.push({
+            timestamp: s.updatedAt,
+            action: 'Admin Takeover',
+            actionColor: 'rgba(239,68,68,0.2)',
+            candidate: `${s.studentName} (${s.usn || '—'})`,
+            sessionId: s.sessionId,
+            details: s.adminMessage ? `Admin asked: "${s.adminMessage.slice(0, 80)}..."` : 'Admin took over the interview.',
+          });
+        }
+
+        // Completed
+        if (s.status === 'completed' && s.completedAt) {
+          log.push({
+            timestamp: s.completedAt,
+            action: 'Completed',
+            actionColor: 'rgba(16,185,129,0.2)',
+            candidate: `${s.studentName} (${s.usn || '—'})`,
+            sessionId: s.sessionId,
+            details: `Interview completed and scored.`,
+          });
+        }
+      });
+
+      // Sort newest first
+      return log.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/admin/sessions');
+        if (res.status === 401) {
+          window.location.href = '/admin_login.html';
+          return;
+        }
+
+        const data = await res.json();
+        const sessions = data.sessions || [];
+        const logs = buildAuditLog(sessions);
+
+        document.getElementById('loadingText').style.display = 'none';
+
+        if (logs.length === 0) {
+          document.getElementById('emptyText').style.display = 'block';
+          document.getElementById('tableWrapper').style.display = 'none';
+        } else {
+          document.getElementById('emptyText').style.display = 'none';
+          const tableBody = document.getElementById('tableBody');
+          tableBody.innerHTML = "";
+
+          logs.forEach(entry => {
+            const tr = document.createElement('tr');
+            
+            const timeStr = new Date(entry.timestamp).toLocaleString();
+            const actionTextColor = ACTION_TEXT_COLORS[entry.action] || 'var(--text-primary)';
+
+            tr.innerHTML = `
+              <td style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">
+                ${timeStr}
+              </td>
+              <td>
+                <span class="status-badge" style="background: ${entry.actionColor}; color: ${actionTextColor}">
+                  ${escapeHTML(entry.action)}
+                </span>
+              </td>
+              <td style="font-weight: 500;">${escapeHTML(entry.candidate)}</td>
+              <td style="font-size: 0.8rem; color: var(--text-secondary); font-family: monospace;">${escapeHTML(entry.sessionId)}</td>
+              <td style="font-size: 0.875rem; color: var(--text-secondary); max-width: 300px;">${escapeHTML(entry.details)}</td>
+            `;
+            tableBody.appendChild(tr);
+          });
+          document.getElementById('tableWrapper').style.display = 'block';
+        }
+      } catch (err) {
+        console.error("Failed to load audit logs:", err);
+      }
+    }
+
+    function escapeHTML(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    fetchLogs();
+  </script>
+</body>
+</html>

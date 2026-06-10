@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Interviews — Admin Portal</title>
+  <link rel="stylesheet" href="/student.css">
+  <link rel="stylesheet" href="/admin.css">
+  <style>
+    .dashboard-table th {
+      border-bottom: 1px solid var(--glass-border);
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div style="padding: 0 1.5rem; margin-bottom: 2rem;">
+        <div style="width: 40px; height: 40px; border-radius: 0.5rem; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-bottom: 0.75rem;">🛡️</div>
+        <h1 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; padding: 0;">Admin Portal</h1>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">Interview Management</p>
+      </div>
+
+      <nav class="sidebar-nav" style="flex: 1;">
+        <a href="/admin_live_interviews.html" class="nav-link active" id="navLive">
+          <span style="font-size: 1rem;">📡</span>
+          Live Interviews
+        </a>
+        <a href="/admin_students.html" class="nav-link" id="navStudents">
+          <span style="font-size: 1rem;">👥</span>
+          Students
+        </a>
+        <a href="/admin_ai_config.html" class="nav-link" id="navConfig">
+          <span style="font-size: 1rem;">🤖</span>
+          AI Configuration
+        </a>
+        <a href="/admin_audit_logs.html" class="nav-link" id="navLogs">
+          <span style="font-size: 1rem;">📋</span>
+          Audit Logs
+        </a>
+      </nav>
+
+      <div style="padding: 1rem; border-top: 1px solid var(--glass-border); margin-top: auto;">
+        <button onclick="handleLogout()" style="width: 100%; padding: 0.625rem 1rem; border-radius: 0.5rem; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(239,68,68,0.15)'" onmouseleave="this.style.background='transparent'">
+          🚪 Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="admin-main">
+      <div class="glass-panel" style="padding: 2rem; flex: 1;">
+        <h2 style="margin-bottom: 1.5rem; color: var(--text-primary)">Live Interviews</h2>
+        
+        <div id="loadingText">
+          <p>Loading active sessions...</p>
+        </div>
+
+        <div id="emptyText" style="display: none;">
+          <p>No active interviews currently.</p>
+        </div>
+
+        <div id="tableWrapper" style="display: none; overflow-x: auto;">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Interview Mode</th>
+                <th>Live Status</th>
+                <th>AI State</th>
+                <th>Started</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!-- Rows inserted dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    async function handleLogout() {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin_login.html';
+    }
+
+    const loadingText = document.getElementById('loadingText');
+    const emptyText = document.getElementById('emptyText');
+    const tableWrapper = document.getElementById('tableWrapper');
+    const tableBody = document.getElementById('tableBody');
+
+    async function fetchSessions() {
+      try {
+        const res = await fetch('/api/admin/sessions');
+        if (res.status === 401) {
+          window.location.href = '/admin_login.html';
+          return;
+        }
+
+        const data = await res.json();
+        const sessions = data.sessions || [];
+
+        loadingText.style.display = 'none';
+
+        if (sessions.length === 0) {
+          emptyText.style.display = 'block';
+          tableWrapper.style.display = 'none';
+        } else {
+          emptyText.style.display = 'none';
+          tableBody.innerHTML = "";
+
+          sessions.forEach(session => {
+            const tr = document.createElement('tr');
+            
+            const timeStr = new Date(session.startTime).toLocaleTimeString();
+            const statusClass = `status-${session.status}`;
+            const aiStatusClass = `status-${session.aiStatus}`;
+
+            tr.innerHTML = `
+              <td>
+                <div>
+                  <strong>${escapeHTML(session.studentName)}</strong> 
+                  <span style="font-size: 0.8rem; color: var(--text-secondary)">(${escapeHTML(session.usn)})</span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary)">
+                  ${escapeHTML(session.college)} • ${escapeHTML(session.branch)}
+                </div>
+              </td>
+              <td>${escapeHTML(session.mode ? session.mode.toUpperCase() : 'AI')}</td>
+              <td>
+                <span class="status-badge ${statusClass}">
+                  ${escapeHTML(session.status.replace('_', ' ').toUpperCase())}
+                </span>
+              </td>
+              <td>
+                <span class="status-badge ${aiStatusClass}">
+                  ${escapeHTML(session.aiStatus.toUpperCase())}
+                </span>
+              </td>
+              <td>${timeStr}</td>
+              <td>
+                <a href="/admin_monitor.html?sessionId=${encodeURIComponent(session.sessionId)}" class="btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                  Observe
+                </a>
+              </td>
+            `;
+            tableBody.appendChild(tr);
+          });
+          tableWrapper.style.display = 'block';
+        }
+      } catch (err) {
+        console.error("Failed to load sessions:", err);
+      }
+    }
+
+    function escapeHTML(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    fetchSessions();
+    setInterval(fetchSessions, 5000); // Poll every 5s
+  </script>
+</body>
+</html>
