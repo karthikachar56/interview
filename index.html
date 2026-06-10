@@ -3,204 +3,230 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Login — AI Interview Room</title>
+  <title>Assessment Selection — AI Interview Room</title>
   <link rel="stylesheet" href="/student.css">
   <style>
-    .login-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 2rem;
+    .intro-container {
+      max-width: 850px;
+      margin: 3rem auto;
+      padding: 0 1.5rem;
     }
-    .login-form {
-      padding: 2.5rem;
-      width: 100%;
-      max-width: 520px;
-      display: flex;
-      flex-direction: column;
-    }
-    .header {
+    .intro-header {
       text-align: center;
       margin-bottom: 2.5rem;
     }
-    .avatar-icon {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      margin: 0 auto 1rem;
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.75rem;
+    .badge {
+      display: inline-block;
+      padding: 0.375rem 1rem;
+      border-radius: 2rem;
+      background: rgba(139,92,246,0.15);
+      border: 1px solid rgba(139,92,246,0.3);
+      color: var(--accent-primary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
     }
-    .form-grid {
+    .intro-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+    .round-card {
+      padding: 1.5rem;
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
-      margin-bottom: 1.75rem;
-    }
-    .grid-row-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-    .form-group label {
-      display: block;
-      margin-bottom: 0.375rem;
-      color: var(--text-secondary);
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .input-field {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
-      border: 1px solid var(--glass-border);
-      background: rgba(255, 255, 255, 0.05);
-      color: white;
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    .input-field:focus {
-      border-color: var(--accent-primary);
-    }
-    select.input-field {
-      background: rgba(0, 0, 0, 0.4);
-      color: white;
+      gap: 0.5rem;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
-    .error-box {
-      padding: 0.75rem;
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: 0.5rem;
-      margin-bottom: 1.25rem;
-      color: var(--accent-danger);
-      font-size: 0.875rem;
+    .round-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-secondary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .round-card.selected {
+      border: 2px solid var(--accent-primary);
+      background: rgba(139, 92, 246, 0.1);
+    }
+    .round-card.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .actions-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+      border-top: 1px solid var(--glass-border);
+      padding-top: 2rem;
+    }
+    .status-text {
+      color: var(--accent-secondary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      animation: pulse-bg 1.5s infinite;
       display: none;
     }
   </style>
 </head>
 <body>
-  <div class="login-container">
-    <form id="loginForm" class="glass-panel login-form animate-fade-in-up">
+  <div class="intro-container animate-fade-in-up">
+    <div class="glass-panel" style="padding: 3rem;">
       <!-- Header -->
-      <div class="header">
-        <div class="avatar-icon">🎓</div>
-        <h2>Student Registration</h2>
-        <p style="margin-top: 0.25rem;">Enter your details to begin the AI mock interview</p>
+      <div class="intro-header">
+        <div class="badge">🎓 Assessment Selection</div>
+        <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem;">
+          Welcome, <span id="studentName">Candidate</span>!
+        </h1>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; max-width: 600px; margin: 0 auto;">
+          Please select the mock interview round you wish to practice today.
+        </p>
       </div>
 
-      <!-- Input Fields -->
-      <div class="form-grid">
-        <div class="grid-row-2">
-          <div class="form-group">
-            <label>Full Name *</label>
-            <input type="text" id="studentName" required placeholder="John Doe" class="input-field">
-          </div>
-          <div class="form-group">
-            <label>USN *</label>
-            <input type="text" id="usn" required placeholder="1AB22CS001" class="input-field">
-          </div>
+      <!-- Rounds Grid -->
+      <div class="intro-grid" id="roundsGrid">
+        <!-- Card 1 -->
+        <div class="glass-panel round-card" data-round="Basic Introduction">
+          <div style="font-size: 1.75rem;">👋</div>
+          <h3 style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">1. Basic Introduction</h3>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            Practice presenting yourself. Focuses on your background, achievements, interest areas, and goals.
+          </p>
         </div>
 
-        <div class="form-group">
-          <label>College Name</label>
-          <input type="text" id="college" placeholder="e.g. IIT Bombay" class="input-field">
+        <!-- Card 2 -->
+        <div class="glass-panel round-card" data-round="Aptitude Round">
+          <div style="font-size: 1.75rem;">🧮</div>
+          <h3 style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">2. Aptitude Round</h3>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            Test your logical reasoning, mathematics, logic, probability, and analytical puzzle-solving.
+          </p>
         </div>
 
-        <div class="grid-row-2">
-          <div class="form-group">
-            <label>Branch / Department</label>
-            <input type="text" id="branch" placeholder="e.g. CS, ECE" class="input-field">
-          </div>
-          <div class="form-group">
-            <label>Year of Study</label>
-            <select id="year" class="input-field">
-              <option value="1st Year">1st Year</option>
-              <option value="2nd Year">2nd Year</option>
-              <option value="3rd Year">3rd Year</option>
-              <option value="4th Year" selected>4th Year</option>
-              <option value="Graduated">Graduated</option>
-            </select>
-          </div>
+        <!-- Card 3 -->
+        <div class="glass-panel round-card" data-round="Technical Round">
+          <div style="font-size: 1.75rem;">💻</div>
+          <h3 style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">3. Technical Round</h3>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            Deep technical dive. Systems engineering, design patterns, performance optimization, and tools.
+          </p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="glass-panel round-card" data-round="HR Round">
+          <div style="font-size: 1.75rem;">🤝</div>
+          <h3 style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem;">4. HR Round</h3>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            Behavioral assessment. Focuses on stress handling, team collaboration, conflicts, and company fit.
+          </p>
         </div>
       </div>
 
-      <!-- Error message -->
-      <div id="errorBox" class="error-box"></div>
-
-      <!-- Submit button -->
-      <button type="submit" id="submitBtn" class="btn-primary" style="width: 100%; font-size: 1rem; padding: 0.875rem;">
-        Proceed to Setup →
-      </button>
-
-      <p style="text-align: center; margin-top: 1.25rem; color: var(--text-secondary); font-size: 0.8rem;">
-        Your details are only used to personalize your interview experience.
-      </p>
-    </form>
+      <!-- Footer Actions -->
+      <div class="actions-footer">
+        <p id="statusText" class="status-text">⏳ Initializing practice round...</p>
+        <button class="btn-secondary" id="dashboardBtn" style="padding: 0.75rem 2rem; font-size: 0.95rem;">
+          🚪 Go to Dashboard
+        </button>
+      </div>
+    </div>
   </div>
 
   <script>
-    // Redirect to dashboard if student is already logged in
+    const name = localStorage.getItem('studentName') || 'Candidate';
+    document.getElementById('studentName').textContent = name;
+
+    const cards = document.querySelectorAll('.round-card');
+    const statusText = document.getElementById('statusText');
+    const dashboardBtn = document.getElementById('dashboardBtn');
+    let saving = false;
+
+    // Show dashboard button only if already registered
     const storedUsn = localStorage.getItem('studentUsn');
-    if (storedUsn) {
-      window.location.href = '/student_dashboard.html';
+    if (!storedUsn) {
+      dashboardBtn.style.display = 'none';
     }
 
-    const form = document.getElementById('loginForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const errorBox = document.getElementById('errorBox');
+    cards.forEach(card => {
+      card.addEventListener('click', async () => {
+        if (saving) return;
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      submitBtn.disabled = true;
-      submitBtn.textContent = '⏳ Registering...';
-      errorBox.style.display = 'none';
+        const roundName = card.getAttribute('data-round');
+        localStorage.setItem('selectedRound', roundName);
+        
+        // Highlight selection
+        cards.forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
 
-      const payload = {
-        studentName: document.getElementById('studentName').value.trim(),
-        usn: document.getElementById('usn').value.trim().toUpperCase(),
-        college: document.getElementById('college').value.trim(),
-        branch: document.getElementById('branch').value.trim(),
-        year: document.getElementById('year').value
-      };
+        saving = true;
+        statusText.style.display = 'block';
+        dashboardBtn.disabled = true;
+        cards.forEach(c => { if (c !== card) c.classList.add('disabled'); });
 
-      try {
-        const response = await fetch('/api/student/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        // Check if candidate is already registered
+        if (storedUsn) {
+          // Returning user: Create a new session automatically
+          try {
+            const payload = {
+              studentName: localStorage.getItem('studentName'),
+              usn: storedUsn,
+              college: localStorage.getItem('studentCollege') || '',
+              branch: localStorage.getItem('studentBranch') || '',
+              year: localStorage.getItem('studentYear') || '4th Year'
+            };
 
-        const data = await response.json();
+            const regRes = await fetch('/api/student/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
 
-        if (response.ok && data.sessionId) {
-          // Store details in localStorage
-          localStorage.setItem('currentSessionId', data.sessionId);
-          localStorage.setItem('studentName', payload.studentName);
-          localStorage.setItem('studentUsn', payload.usn);
-          localStorage.setItem('studentCollege', payload.college);
-          localStorage.setItem('studentBranch', payload.branch);
-          
-          window.location.href = '/student_introduction.html';
+            const regData = await regRes.json();
+            if (regRes.ok && regData.sessionId) {
+              const sessionId = regData.sessionId;
+              localStorage.setItem('currentSessionId', sessionId);
+
+              // Sync the selected round
+              const syncRes = await fetch('/api/interview/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, round: roundName })
+              });
+
+              if (syncRes.ok) {
+                window.location.href = '/student_setup.html';
+              } else {
+                alert('Failed to set round. Please try again.');
+                resetUI();
+              }
+            } else {
+              alert('Failed to start a new session. Please try again.');
+              resetUI();
+            }
+          } catch (err) {
+            console.error(err);
+            alert('Network error. Please try again.');
+            resetUI();
+          }
         } else {
-          errorBox.textContent = '⚠️ ' + (data.error || 'Failed to register. Please try again.');
-          errorBox.style.display = 'block';
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Proceed to Setup →';
+          // New candidate: Redirect to registration form
+          window.location.href = '/student_registration.html';
         }
-      } catch (err) {
-        errorBox.textContent = '⚠️ Network error. Please check your connection.';
-        errorBox.style.display = 'block';
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Proceed to Setup →';
-      }
+      });
+    });
+
+    function resetUI() {
+      saving = false;
+      statusText.style.display = 'none';
+      dashboardBtn.disabled = false;
+      cards.forEach(c => {
+        c.classList.remove('selected', 'disabled');
+      });
+    }
+
+    dashboardBtn.addEventListener('click', () => {
+      window.location.href = '/student_dashboard.html';
     });
   </script>
 </body>
