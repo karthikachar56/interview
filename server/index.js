@@ -19,6 +19,8 @@ const app = express();
 app.use(express.json({ limit: '8mb' }));
 app.use(express.static(path.join(__dirname, '..')));
 
+let cachedInstructions = null;
+
 
 const sessions = new Map();
 function getSession(id) {
@@ -337,25 +339,34 @@ async function startServer() {
 
     try {
       if (mongoUnavailable) {
+        if (cachedInstructions !== null) {
+          return res.json({ instructions: cachedInstructions });
+        }
         const configPath = path.join(__dirname, '..', 'db', 'fallback-aiconfig.json');
         const content = await fs.readFile(configPath, 'utf8')
           .then(JSON.parse)
           .catch(() => ({ instructions: '' }));
-        return res.json({ instructions: content.instructions || '' });
+        cachedInstructions = content.instructions || '';
+        return res.json({ instructions: cachedInstructions });
       }
 
       const client = await connectDb();
       if (client) {
         const db = client.db(DB_NAME);
         const config = await db.collection('aiconfigs').findOne();
-        return res.json({ instructions: config?.instructions || '' });
+        cachedInstructions = config?.instructions || '';
+        return res.json({ instructions: cachedInstructions });
       }
 
+      if (cachedInstructions !== null) {
+        return res.json({ instructions: cachedInstructions });
+      }
       const configPath = path.join(__dirname, '..', 'db', 'fallback-aiconfig.json');
       const content = await fs.readFile(configPath, 'utf8')
         .then(JSON.parse)
         .catch(() => ({ instructions: '' }));
-      res.json({ instructions: content.instructions || '' });
+      cachedInstructions = content.instructions || '';
+      res.json({ instructions: cachedInstructions });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to fetch AI config' });
@@ -374,9 +385,14 @@ async function startServer() {
 
     try {
       if (mongoUnavailable) {
+        cachedInstructions = instructions;
         const configPath = path.join(__dirname, '..', 'db', 'fallback-aiconfig.json');
-        await fs.mkdir(path.dirname(configPath), { recursive: true });
-        await fs.writeFile(configPath, JSON.stringify({ instructions }, null, 2), 'utf8');
+        try {
+          await fs.mkdir(path.dirname(configPath), { recursive: true });
+          await fs.writeFile(configPath, JSON.stringify({ instructions }, null, 2), 'utf8');
+        } catch (writeErr) {
+          console.warn('Failed to write fallback config to read-only FS:', writeErr.message);
+        }
         return res.json({ success: true });
       }
 
@@ -388,12 +404,18 @@ async function startServer() {
           { $set: { instructions } },
           { upsert: true }
         );
+        cachedInstructions = instructions;
         return res.json({ success: true });
       }
 
+      cachedInstructions = instructions;
       const configPath = path.join(__dirname, '..', 'db', 'fallback-aiconfig.json');
-      await fs.mkdir(path.dirname(configPath), { recursive: true });
-      await fs.writeFile(configPath, JSON.stringify({ instructions }, null, 2), 'utf8');
+      try {
+        await fs.mkdir(path.dirname(configPath), { recursive: true });
+        await fs.writeFile(configPath, JSON.stringify({ instructions }, null, 2), 'utf8');
+      } catch (writeErr) {
+        console.warn('Failed to write fallback config to read-only FS:', writeErr.message);
+      }
       res.json({ success: true });
     } catch (err) {
       console.error(err);
