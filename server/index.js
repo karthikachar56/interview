@@ -233,47 +233,47 @@ async function connectDb() {
   }
 }
 
-const QUESTIONS_BY_ROUND = {
-  "Basic Introduction": [
-    "Hello! Let's start with your background. Can you tell me about yourself?",
-    "What are your hobbies and interest areas outside of study or work?",
-    "Why did you choose your branch of study, and what did you enjoy most about it?",
-    "Where do you see yourself in 3 years from now?",
-    "Finally, do you have any questions for me about the platform or the mock assessment?"
-  ],
-  "Aptitude Round": [
-    "Welcome to the Aptitude Round. Let's do some logical reasoning. If a clock strikes 6 times in 5 seconds, how long will it take to strike 12 times?",
-    "A train traveling at 60 km/h passes a pole in 9 seconds. What is the length of the train in meters?",
-    "A box contains 5 red, 8 blue, and 3 green marbles. If 3 marbles are drawn at random, what is the probability that they are all blue?",
-    "If 5 workers can build 5 tables in 5 days, how many days will it take 100 workers to build 100 tables?",
-    "That concludes the aptitude questions. Do you have any general comments on these questions?"
-  ],
-  "Technical Round": [
-    "Hello! Let's start with your background. Can you tell me about yourself and your recent experience?",
-    "Could you describe a challenging technical problem you recently solved and how you approached it?",
-    "What is your experience with system design and architecture?",
-    "How do you handle disagreements within your team regarding technical decisions?",
-    "Can you explain a time when you had to optimize the performance of an application?",
-    "What testing methodologies do you follow to ensure the reliability of your code?",
-    "How do you stay updated with the latest technologies and industry trends?",
-    "Could you share your experience with CI/CD pipelines and deployment strategies?",
-    "Describe a situation where you had to quickly learn a new technology to complete a project.",
-    "Finally, do you have any questions for me about the company or the role?"
-  ],
-  "HR Round": [
-    "Welcome to the HR round. Why do you want to work with us?",
-    "Can you describe a situation where you worked under a tight deadline and how you managed it?",
-    "What are your key strengths, and what is one major area you are working to improve?",
-    "How do you handle conflicts or work-related stress?",
-    "Finally, do you have any questions for me about the company or the team culture?"
-  ]
-};
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 
-function getQuestionsForRound(round) {
-  const normalized = Object.keys(QUESTIONS_BY_ROUND).find(
-    r => r.toLowerCase().replace(/\s+/g, '') === String(round || '').toLowerCase().replace(/\s+/g, '')
-  );
-  return QUESTIONS_BY_ROUND[normalized || "Technical Round"];
+async function get10RandomQuestionsForRound(round) {
+  const normalizedRound = String(round || 'Technical Round').trim();
+  let questionsObj = null;
+
+  try {
+    if (mongoUnavailable) {
+      const fs = require('fs');
+      const questionsPath = path.join(__dirname, '..', 'db', 'fallback-questions.json');
+      questionsObj = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+    } else {
+      const client = await connectDb();
+      if (client) {
+        const db = client.db(DB_NAME);
+        questionsObj = await db.collection('interviewquestions').findOne({ _id: 'global_questions' });
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch questions from DB/fallback:', err);
+  }
+
+  if (!questionsObj) {
+    return ["Can you tell me about yourself?", "What is your biggest achievement?", "What is your greatest strength?"];
+  }
+
+  // Try exact match or normalized match
+  let poolKey = Object.keys(questionsObj).find(k => k.toLowerCase().replace(/\s+/g, '') === normalizedRound.toLowerCase().replace(/\s+/g, ''));
+  if (!poolKey || poolKey === '_id') poolKey = Object.keys(questionsObj).find(k => k !== '_id');
+
+  const pool = questionsObj[poolKey] || [];
+  if (pool.length === 0) return ["Can you tell me about yourself?", "What is your biggest achievement?", "What is your greatest strength?"];
+  
+  const shuffled = shuffleArray([...pool]);
+  return shuffled.slice(0, 10);
 }
 
 function getAdminAuth(req) {
@@ -489,7 +489,7 @@ async function startServer() {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
-    const sessionId = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
+    const sessionId = usn.trim().toUpperCase();
     
     const doc = {
       sessionId,
@@ -510,6 +510,7 @@ async function startServer() {
 
     try {
       if (mongoUnavailable) {
+        backupSessions = backupSessions.filter(s => s.sessionId !== sessionId);
         backupSessions.unshift(doc);
         await saveSessionsFallback();
         return res.json({ success: true, sessionId, session: doc });
@@ -518,10 +519,15 @@ async function startServer() {
       const client = await connectDb();
       if (client) {
         const db = client.db(DB_NAME);
-        await db.collection('interviewsessions').insertOne(doc);
+        await db.collection('interviewsessions').replaceOne(
+          { sessionId },
+          doc,
+          { upsert: true }
+        );
         return res.json({ success: true, sessionId, session: doc });
       }
 
+      backupSessions = backupSessions.filter(s => s.sessionId !== sessionId);
       backupSessions.unshift(doc);
       await saveSessionsFallback();
       res.json({ success: true, sessionId, session: doc });
@@ -582,7 +588,25 @@ async function startServer() {
         }
       }
 
-      const questions = getQuestionsForRound(round);
+      const questions = await get10RandomQuestionsForRound(round);
+      
+      // Save selected questions to the session
+      if (sessionId) {
+        if (mongoUnavailable) {
+          const s = backupSessions.find(x => x.sessionId === sessionId);
+          if (s) {
+            s.selectedQuestions = questions;
+            await saveSessionsFallback();
+          }
+        } else {
+          const client = await connectDb();
+          if (client) {
+            const db = client.db(DB_NAME);
+            await db.collection('interviewsessions').updateOne({ sessionId }, { $set: { selectedQuestions: questions } });
+          }
+        }
+      }
+
       res.json({ question: questions[0], round });
     } catch (err) {
       console.error(err);
@@ -595,22 +619,28 @@ async function startServer() {
     try {
       const { sessionId, history } = req.body;
       let round = "Technical Round";
+      let questions = null;
 
       if (sessionId) {
         if (mongoUnavailable) {
           const s = backupSessions.find(x => x.sessionId === sessionId);
           if (s && s.round) round = s.round;
+          if (s && s.selectedQuestions) questions = s.selectedQuestions;
         } else {
           const client = await connectDb();
           if (client) {
             const db = client.db(DB_NAME);
             const s = await db.collection('interviewsessions').findOne({ sessionId });
             if (s && s.round) round = s.round;
+            if (s && s.selectedQuestions) questions = s.selectedQuestions;
           }
         }
       }
 
-      const questions = getQuestionsForRound(round);
+      if (!questions || questions.length === 0) {
+        questions = await get10RandomQuestionsForRound(round);
+      }
+
       const aiMessageCount = history.filter(msg => msg.role === 'ai' || msg.role === 'admin').length;
 
       if (aiMessageCount < questions.length) {
@@ -774,7 +804,7 @@ async function startServer() {
         .map(m => `${m.role === 'ai' ? 'INTERVIEWER' : m.role === 'student' ? 'CANDIDATE' : 'ADMIN'}: ${m.text}`)
         .join('\n');
 
-      const evaluationPrompt = `You are an expert interview evaluator. Analyze this interview transcript and provide a detailed evaluation.
+      const evaluationPrompt = `You are an expert interview evaluator. Analyze this interview transcript and provide a detailed evaluation. You are also capable of generating questions online to complement your evaluation.
 
 TRANSCRIPT:
 ${transcriptStr}
@@ -788,9 +818,14 @@ Evaluate the candidate and respond with ONLY valid JSON in this exact format (no
 }
 
 Scoring criteria:
-- Technical accuracy (40 pts): Correctness and depth of answers
-- Communication (30 pts): Clarity, structure, and confidence
-- Problem-solving (30 pts): Approach, reasoning, adaptability`;
+There were 10 questions asked. Each question is worth exactly 10 marks (Total 100 marks).
+For EACH question asked by the INTERVIEWER, assess the CANDIDATE's answer and award marks as follows:
+- 10 marks: The person answers correctly.
+- 5 marks: The person answers correctly but half the answer is correct or partially complete.
+- 3 marks: The person is nervous but tries.
+- 2 marks: The person tries to answer but it's incorrect.
+- 0 marks: The person does not answer at all.
+Sum up the scores for all questions to get the total out of 100.`;
 
       let score = 70;
       let feedback = 'Good effort. Keep practicing to improve your interview skills.';
