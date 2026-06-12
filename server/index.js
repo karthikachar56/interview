@@ -161,7 +161,7 @@ async function runCompileJob(language, code) {
   return { error: `Language ${language} is not supported` };
 }
 
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://achark659_db_user:achark659@cluster0.o9gcc16.mongodb.net/?retryWrites=true&w=majority';
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://achark659_db_user:Xxol6UxZQILSZtrQ@cluster0.upn6f4k.mongodb.net/?appName=Cluster0';
 const DB_NAME = 'ai_interview';
 const fallbackPath = path.join(__dirname, '..', 'db', 'fallback-entrances.json');
 const sessionsFallbackPath = path.join(__dirname, '..', 'db', 'fallback-sessions.json');
