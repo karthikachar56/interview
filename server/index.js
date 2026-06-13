@@ -734,10 +734,14 @@ async function startServer() {
 
       const aiMessageCount = history.filter(msg => msg.role === 'ai' || msg.role === 'admin').length;
 
-      // Extract latest student answer and asynchronously calculate metrics
+      // Extract latest student answer and synchronously calculate metrics to prevent Vercel from killing the background task
       const studentMsg = history.slice().reverse().find(m => m.role === 'student');
       if (studentMsg) {
-        evaluateRealTimeMetrics(sessionId, studentMsg.text).catch(err => console.error("Metrics bg error", err));
+        try {
+          await evaluateRealTimeMetrics(sessionId, studentMsg.text);
+        } catch (err) {
+          console.error("Metrics evaluation error", err);
+        }
       }
 
       if (aiMessageCount < questions.length) {
@@ -1010,6 +1014,8 @@ Sum up the scores for all questions to get the total out of 100.`;
             if (Array.isArray(parsed.improvements)) improvements = parsed.improvements.slice(0, 3);
           } catch (aiErr) {
             console.error('AI evaluation failed, using defaults:', aiErr.message);
+            feedback = `[SYSTEM ERROR] AI evaluation failed: ${aiErr.message}`;
+            score = 70;
           }
         } else {
           console.warn('GEMINI_API_KEY not set. Using fallback scoring.');
