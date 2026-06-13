@@ -855,7 +855,7 @@ async function startServer() {
       if (mongoUnavailable) {
         const filtered = backupSessions.filter(s => s.status === 'completed' && s.score !== undefined);
         filtered.sort((a, b) => b.score - a.score);
-        const sliced = filtered.slice(0, 20).map(s => ({
+        const sliced = filtered.slice(0, 25).map(s => ({
           studentName: s.studentName,
           usn: s.usn,
           college: s.college,
@@ -872,7 +872,7 @@ async function startServer() {
         const items = await db.collection('interviewsessions')
           .find({ status: 'completed', score: { $exists: true } })
           .sort({ score: -1 })
-          .limit(20)
+          .limit(25)
           .project({ studentName: 1, usn: 1, college: 1, branch: 1, score: 1, completedAt: 1 })
           .toArray();
         return res.json({ leaderboard: items });
@@ -880,7 +880,7 @@ async function startServer() {
 
       const filtered = backupSessions.filter(s => s.status === 'completed' && s.score !== undefined);
       filtered.sort((a, b) => b.score - a.score);
-      const sliced = filtered.slice(0, 20).map(s => ({
+      const sliced = filtered.slice(0, 25).map(s => ({
         studentName: s.studentName,
         usn: s.usn,
         college: s.college,
