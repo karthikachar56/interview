@@ -325,13 +325,14 @@ Respond ONLY with a valid JSON object in this exact format:
     const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     const parsed = JSON.parse(jsonStr);
 
+    const getMetric = (val) => (val === undefined || val === null || isNaN(Number(val))) ? 5 : Number(val);
     const metrics = {
-      confidence: Math.min(10, Math.max(0, Number(parsed.confidence) || 5)),
-      vocabulary: Math.min(10, Math.max(0, Number(parsed.vocabulary) || 5)),
-      answering: Math.min(10, Math.max(0, Number(parsed.answering) || 5)),
-      nervousness: Math.min(10, Math.max(0, Number(parsed.nervousness) || 5)),
-      faceExpression: Math.min(10, Math.max(0, Number(parsed.faceExpression) || 5)),
-      questionUnderstand: Math.min(10, Math.max(0, Number(parsed.questionUnderstand) || 5))
+      confidence: Math.min(10, Math.max(0, getMetric(parsed.confidence))),
+      vocabulary: Math.min(10, Math.max(0, getMetric(parsed.vocabulary))),
+      answering: Math.min(10, Math.max(0, getMetric(parsed.answering))),
+      nervousness: Math.min(10, Math.max(0, getMetric(parsed.nervousness))),
+      faceExpression: Math.min(10, Math.max(0, getMetric(parsed.faceExpression))),
+      questionUnderstand: Math.min(10, Math.max(0, getMetric(parsed.questionUnderstand)))
     };
 
     const calculateAverages = (history) => {
@@ -1002,7 +1003,8 @@ Sum up the scores for all questions to get the total out of 100.`;
             const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
             const parsed = JSON.parse(jsonStr);
 
-            score = Math.min(100, Math.max(0, Number(parsed.score) || 70));
+            const parsedScore = Number(parsed.score);
+            score = Math.min(100, Math.max(0, isNaN(parsedScore) || parsed.score === null || parsed.score === undefined ? 70 : parsedScore));
             if (parsed.feedback) feedback = parsed.feedback;
             if (Array.isArray(parsed.strengths)) strengths = parsed.strengths.slice(0, 3);
             if (Array.isArray(parsed.improvements)) improvements = parsed.improvements.slice(0, 3);
