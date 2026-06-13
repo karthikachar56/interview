@@ -294,17 +294,17 @@ function getAdminAuth(req) {
   return list['admin_auth'] === 'authenticated';
 }
 
-async function evaluateRealTimeMetrics(sessionId, studentAnswer) {
+async function evaluateRealTimeMetrics(sessionId, studentAnswer, questionAsked) {
   if (!process.env.GEMINI_API_KEY) return;
-  if (!studentAnswer || studentAnswer.trim().length < 5) return;
+  if (!studentAnswer || studentAnswer.trim().length === 0) return;
 
-  const prompt = `You are an expert interview behavioral analyzer.
-Based on the following answer provided by a candidate, evaluate their performance on 6 metrics on a scale of 0 to 10.
-If the answer is short or uses filler words (like um, uh), penalize the confidence, vocabulary, and nervousness scores appropriately.
-Infer "Face expression" from the tone and structure of the text (e.g., a confident answer implies a positive expression).
+  const prompt = `You are an expert interview evaluator.
+The interviewer asked: "${questionAsked}"
+The candidate answered: "${studentAnswer}"
 
-Candidate's Answer:
-"${studentAnswer}"
+Evaluate the candidate's performance on a scale of 0 to 10 for the following metrics:
+1. "confidence", "vocabulary", "answering", "nervousness", "faceExpression", "questionUnderstand".
+2. "answerScore": Assess the correctness of the answer to the question (10=perfect, 5=partial/half-correct, 0=wrong or no real answer).
 
 Respond ONLY with a valid JSON object in this exact format:
 {
@@ -313,7 +313,8 @@ Respond ONLY with a valid JSON object in this exact format:
   "answering": <0-10>,
   "nervousness": <0-10>,
   "faceExpression": <0-10>,
-  "questionUnderstand": <0-10>
+  "questionUnderstand": <0-10>,
+  "answerScore": <0-10>
 }`;
 
   try {
@@ -332,7 +333,8 @@ Respond ONLY with a valid JSON object in this exact format:
       answering: Math.min(10, Math.max(0, getMetric(parsed.answering))),
       nervousness: Math.min(10, Math.max(0, getMetric(parsed.nervousness))),
       faceExpression: Math.min(10, Math.max(0, getMetric(parsed.faceExpression))),
-      questionUnderstand: Math.min(10, Math.max(0, getMetric(parsed.questionUnderstand)))
+      questionUnderstand: Math.min(10, Math.max(0, getMetric(parsed.questionUnderstand))),
+      answerScore: Math.min(10, Math.max(0, getMetric(parsed.answerScore)))
     };
 
     const calculateAverages = (history) => {
@@ -736,9 +738,11 @@ async function startServer() {
 
       // Extract latest student answer and synchronously calculate metrics to prevent Vercel from killing the background task
       const studentMsg = history.slice().reverse().find(m => m.role === 'student');
+      const aiMsg = history.slice().reverse().find(m => m.role === 'ai' || m.role === 'admin');
       if (studentMsg) {
         try {
-          await evaluateRealTimeMetrics(sessionId, studentMsg.text);
+          const questionText = aiMsg ? aiMsg.text : "Unknown question";
+          await evaluateRealTimeMetrics(sessionId, studentMsg.text, questionText);
         } catch (err) {
           console.error("Metrics evaluation error", err);
         }
@@ -958,42 +962,32 @@ async function startServer() {
       if (!hasStudentAnswers) {
         score = 0;
         feedback = 'The candidate exited the interview without providing any answers.';
-        strengths = ['None observed'];
-        improvements = ['Candidate needs to participate and answer the questions'];
-        savedVallyMetrics = { confidence: 0, vocabulary: 0, answering: 0, nervousness: 0, faceExpression: 0, questionUnderstand: 0 };
+        feedback = "The candidate did not provide any answers during the interview.";
       } else {
+        const transcriptStr = transcript.map(m => `${m.role === 'student' ? 'CANDIDATE' : 'INTERVIEWER'}: ${m.text}`).join('\n');
+        
+        let vallyMetricsStr = '';
         if (savedVallyMetrics) {
-          vallyMetricsStr = `\nCANDIDATE AVERAGE METRICS (0-10):
+          vallyMetricsStr = `Here are the candidate's real-time behavioral metrics (out of 10) tracked during the interview:
 Confidence: ${savedVallyMetrics.confidence}
 Vocabulary: ${savedVallyMetrics.vocabulary}
 Answering: ${savedVallyMetrics.answering}
 Nervousness: ${savedVallyMetrics.nervousness}
 Face Expression: ${savedVallyMetrics.faceExpression}
-Question Understanding: ${savedVallyMetrics.questionUnderstand}
-Please incorporate these real-time behavioral metrics heavily into your final score and feedback.\n`;
+Understanding: ${savedVallyMetrics.questionUnderstand}\n`;
         }
 
           const evaluationPrompt = `You are an expert interview evaluator. Evaluate this interview transcript.
 TRANSCRIPT:
 ${transcriptStr}
 ${vallyMetricsStr}
-Evaluate the candidate and respond with ONLY valid JSON in this exact format (no markdown, no code blocks):
+Evaluate the candidate and respond with ONLY valid JSON in this exact format:
 {
-  "score": <integer 0-100>,
   "feedback": "<1 short sentence overall feedback>",
   "strengths": ["<1-2 words>", "<1-2 words>", "<1-2 words>"],
   "improvements": ["<1-2 words>", "<1-2 words>", "<1-2 words>"]
 }
-
-Scoring criteria:
-There were 10 questions asked. Each question is worth exactly 10 marks (Total 100 marks).
-For EACH question asked, award marks:
-- 10 marks: The person answers correctly.
-- 5 marks: The person answers correctly but half the answer is correct or partially complete.
-- 3 marks: The person is nervous but tries.
-- 2 marks: The person tries to answer but it's incorrect.
-- 0 marks: The person does not answer at all.
-Sum up the scores for all questions to get the total out of 100. Be concise to save time.`;
+Provide strengths and improvements based on the candidate's answers and behavioral metrics. Be concise.`;
 
         if (process.env.GEMINI_API_KEY) {
           try {
@@ -1006,15 +1000,12 @@ Sum up the scores for all questions to get the total out of 100. Be concise to s
             const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
             const parsed = JSON.parse(jsonStr);
 
-            const parsedScore = Number(parsed.score);
-            score = Math.min(100, Math.max(0, isNaN(parsedScore) || parsed.score === null || parsed.score === undefined ? 70 : parsedScore));
             if (parsed.feedback) feedback = parsed.feedback;
             if (Array.isArray(parsed.strengths)) strengths = parsed.strengths.slice(0, 3);
             if (Array.isArray(parsed.improvements)) improvements = parsed.improvements.slice(0, 3);
           } catch (aiErr) {
             console.error('AI evaluation failed, using defaults:', aiErr.message);
             feedback = `[SYSTEM ERROR] AI evaluation failed: ${aiErr.message}`;
-            score = 70;
           }
         } else {
           console.warn('GEMINI_API_KEY not set. Using fallback scoring.');
