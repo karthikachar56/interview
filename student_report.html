@@ -119,6 +119,19 @@
       </section>
     </main>
 
+    <!-- Behavioral Metrics -->
+    <section class="glass-panel" style="padding: 2rem; margin-top: 2rem; display: none;" id="metricsSection">
+      <h2 style="margin-bottom: 1.5rem; color: var(--text-primary);">Behavioral & Vally Metrics</h2>
+      <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 1rem;">
+        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repConfidence">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Confidence</div></div>
+        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repVocabulary">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Vocabulary</div></div>
+        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repAnswering">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Answering</div></div>
+        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repNervousness">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Nervousness</div></div>
+        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repFace">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Face Expression</div></div>
+        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repUnderstand">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Understanding</div></div>
+      </div>
+    </section>
+
     <!-- Footer buttons -->
     <div style="text-align: center; margin-top: 3rem; display: flex; gap: 1rem; justify-content: center;">
       <button class="btn-secondary" id="historyBtn">View History</button>
@@ -240,6 +253,17 @@
         li.innerHTML = `<strong style="color: var(--accent-danger);">↗ Improve:</strong> ${escapeHTML(imp)}`;
         list.appendChild(li);
       });
+
+      // Render Behavioral Metrics if available
+      if (session.vallyMetrics) {
+        document.getElementById('metricsSection').style.display = 'block';
+        document.getElementById('repConfidence').textContent = `${session.vallyMetrics.confidence}/10`;
+        document.getElementById('repVocabulary').textContent = `${session.vallyMetrics.vocabulary}/10`;
+        document.getElementById('repAnswering').textContent = `${session.vallyMetrics.answering}/10`;
+        document.getElementById('repNervousness').textContent = `${session.vallyMetrics.nervousness}/10`;
+        document.getElementById('repFace').textContent = `${session.vallyMetrics.faceExpression}/10`;
+        document.getElementById('repUnderstand').textContent = `${session.vallyMetrics.questionUnderstand}/10`;
+      }
     }
 
     function escapeHTML(str) {

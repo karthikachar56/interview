@@ -273,6 +273,13 @@ async function get10RandomQuestionsForRound(round) {
   if (pool.length === 0) return ["Can you tell me about yourself?", "What is your biggest achievement?", "What is your greatest strength?"];
   
   const shuffled = shuffleArray([...pool]);
+  
+  if (normalizedRound.toLowerCase().includes('basic introduction')) {
+    const forcedQuestion = "Can you tell me about yourself?";
+    const filtered = shuffled.filter(q => q.toLowerCase() !== forcedQuestion.toLowerCase());
+    return [forcedQuestion, ...filtered].slice(0, 10);
+  }
+
   return shuffled.slice(0, 10);
 }
 
@@ -285,6 +292,88 @@ function getAdminAuth(req) {
     list[parts.shift().trim()] = decodeURI(parts.join('='));
   });
   return list['admin_auth'] === 'authenticated';
+}
+
+async function evaluateRealTimeMetrics(sessionId, studentAnswer) {
+  if (!process.env.GEMINI_API_KEY) return;
+  if (!studentAnswer || studentAnswer.trim().length < 5) return;
+
+  const prompt = `You are an expert interview behavioral analyzer.
+Based on the following answer provided by a candidate, evaluate their performance on 6 metrics on a scale of 0 to 10.
+If the answer is short or uses filler words (like um, uh), penalize the confidence, vocabulary, and nervousness scores appropriately.
+Infer "Face expression" from the tone and structure of the text (e.g., a confident answer implies a positive expression).
+
+Candidate's Answer:
+"${studentAnswer}"
+
+Respond ONLY with a valid JSON object in this exact format:
+{
+  "confidence": <0-10>,
+  "vocabulary": <0-10>,
+  "answering": <0-10>,
+  "nervousness": <0-10>,
+  "faceExpression": <0-10>,
+  "questionUnderstand": <0-10>
+}`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    const raw = (response.text || '').trim();
+    const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    const parsed = JSON.parse(jsonStr);
+
+    const metrics = {
+      confidence: Math.min(10, Math.max(0, Number(parsed.confidence) || 5)),
+      vocabulary: Math.min(10, Math.max(0, Number(parsed.vocabulary) || 5)),
+      answering: Math.min(10, Math.max(0, Number(parsed.answering) || 5)),
+      nervousness: Math.min(10, Math.max(0, Number(parsed.nervousness) || 5)),
+      faceExpression: Math.min(10, Math.max(0, Number(parsed.faceExpression) || 5)),
+      questionUnderstand: Math.min(10, Math.max(0, Number(parsed.questionUnderstand) || 5))
+    };
+
+    const calculateAverages = (history) => {
+      const count = history.length;
+      return {
+        confidence: Math.round(history.reduce((a, b) => a + b.confidence, 0) / count),
+        vocabulary: Math.round(history.reduce((a, b) => a + b.vocabulary, 0) / count),
+        answering: Math.round(history.reduce((a, b) => a + b.answering, 0) / count),
+        nervousness: Math.round(history.reduce((a, b) => a + b.nervousness, 0) / count),
+        faceExpression: Math.round(history.reduce((a, b) => a + b.faceExpression, 0) / count),
+        questionUnderstand: Math.round(history.reduce((a, b) => a + b.questionUnderstand, 0) / count)
+      };
+    };
+
+    // Save to DB
+    if (mongoUnavailable) {
+      let session = backupSessions.find(s => s.sessionId === sessionId);
+      if (session) {
+        if (!session.vallyMetricsHistory) session.vallyMetricsHistory = [];
+        session.vallyMetricsHistory.push(metrics);
+        session.vallyMetrics = calculateAverages(session.vallyMetricsHistory);
+        await saveSessionsFallback();
+      }
+    } else {
+      const client = await connectDb();
+      if (client) {
+        const db = client.db(DB_NAME);
+        const session = await db.collection('interviewsessions').findOne({ sessionId });
+        if (session) {
+          const history = session.vallyMetricsHistory || [];
+          history.push(metrics);
+          const vallyMetrics = calculateAverages(history);
+          await db.collection('interviewsessions').updateOne(
+            { sessionId },
+            { $set: { vallyMetricsHistory: history, vallyMetrics } }
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error("evaluateRealTimeMetrics error:", err);
+  }
 }
 
 async function startServer() {
@@ -489,7 +578,8 @@ async function startServer() {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
-    const sessionId = usn.trim().toUpperCase();
+    const baseUsn = usn.trim().toUpperCase();
+    const sessionId = `${baseUsn}-${Date.now()}`;
     
     const doc = {
       sessionId,
@@ -497,7 +587,7 @@ async function startServer() {
       adminMessage: null,
       studentAnswer: null,
       studentName: studentName.trim(),
-      usn: usn.trim().toUpperCase(),
+      usn: baseUsn,
       college: (college || '').trim(),
       branch: (branch || '').trim(),
       year: year || '4th Year',
@@ -643,6 +733,12 @@ async function startServer() {
 
       const aiMessageCount = history.filter(msg => msg.role === 'ai' || msg.role === 'admin').length;
 
+      // Extract latest student answer and asynchronously calculate metrics
+      const studentMsg = history.slice().reverse().find(m => m.role === 'student');
+      if (studentMsg) {
+        evaluateRealTimeMetrics(sessionId, studentMsg.text).catch(err => console.error("Metrics bg error", err));
+      }
+
       if (aiMessageCount < questions.length) {
         res.json({ question: questions[aiMessageCount] });
       } else {
@@ -695,7 +791,7 @@ async function startServer() {
   });
 
   app.post('/api/interview/sync', async (req, res) => {
-    const { sessionId, mode, adminMessage, studentAnswer, status, aiStatus, round } = req.body;
+    const { sessionId, mode, adminMessage, studentAnswer, status, aiStatus, round, score } = req.body;
     if (!sessionId) return res.status(400).json({ error: "Missing sessionId" });
 
     const updates = {};
@@ -705,6 +801,13 @@ async function startServer() {
     if (status !== undefined) updates.status = status;
     if (aiStatus !== undefined) updates.aiStatus = aiStatus;
     if (round !== undefined) updates.round = round;
+    if (score !== undefined) {
+      updates.score = score;
+      updates.completedAt = new Date();
+      updates.feedback = "Admin manually evaluated and completed the interview.";
+      updates.strengths = ["Completed supervised interview"];
+      updates.improvements = ["N/A"];
+    }
     updates.updatedAt = new Date();
 
     try {
@@ -804,11 +907,50 @@ async function startServer() {
         .map(m => `${m.role === 'ai' ? 'INTERVIEWER' : m.role === 'student' ? 'CANDIDATE' : 'ADMIN'}: ${m.text}`)
         .join('\n');
 
-      const evaluationPrompt = `You are an expert interview evaluator. Analyze this interview transcript and provide a detailed evaluation. You are also capable of generating questions online to complement your evaluation.
+      let vallyMetricsStr = '';
+      let savedVallyMetrics = null;
+      if (mongoUnavailable) {
+        const session = backupSessions.find(s => s.sessionId === sessionId);
+        if (session && session.vallyMetrics) savedVallyMetrics = session.vallyMetrics;
+      } else {
+        const client = await connectDb();
+        if (client) {
+          const db = client.db(DB_NAME);
+          const session = await db.collection('interviewsessions').findOne({ sessionId });
+          if (session && session.vallyMetrics) savedVallyMetrics = session.vallyMetrics;
+        }
+      }
+
+      const hasStudentAnswers = transcript.some(m => m.role === 'student');
+
+      let score = 70;
+      let feedback = 'Good effort. Keep practicing to improve your interview skills.';
+      let strengths = ['Showed willingness to engage', 'Attempted all questions'];
+      let improvements = ['Work on technical depth', 'Practice clear explanations'];
+
+      if (!hasStudentAnswers) {
+        score = 0;
+        feedback = 'The candidate exited the interview without providing any answers.';
+        strengths = ['None observed'];
+        improvements = ['Candidate needs to participate and answer the questions'];
+        savedVallyMetrics = { confidence: 0, vocabulary: 0, answering: 0, nervousness: 0, faceExpression: 0, questionUnderstand: 0 };
+      } else {
+        if (savedVallyMetrics) {
+          vallyMetricsStr = `\nCANDIDATE AVERAGE METRICS (0-10):
+Confidence: ${savedVallyMetrics.confidence}
+Vocabulary: ${savedVallyMetrics.vocabulary}
+Answering: ${savedVallyMetrics.answering}
+Nervousness: ${savedVallyMetrics.nervousness}
+Face Expression: ${savedVallyMetrics.faceExpression}
+Question Understanding: ${savedVallyMetrics.questionUnderstand}
+Please incorporate these real-time behavioral metrics heavily into your final score and feedback.\n`;
+        }
+
+        const evaluationPrompt = `You are an expert interview evaluator. Analyze this interview transcript and provide a detailed evaluation. You are also capable of generating questions online to complement your evaluation.
 
 TRANSCRIPT:
 ${transcriptStr}
-
+${vallyMetricsStr}
 Evaluate the candidate and respond with ONLY valid JSON in this exact format (no markdown, no code blocks):
 {
   "score": <integer 0-100>,
@@ -827,31 +969,27 @@ For EACH question asked by the INTERVIEWER, assess the CANDIDATE's answer and aw
 - 0 marks: The person does not answer at all.
 Sum up the scores for all questions to get the total out of 100.`;
 
-      let score = 70;
-      let feedback = 'Good effort. Keep practicing to improve your interview skills.';
-      let strengths = ['Showed willingness to engage', 'Attempted all questions'];
-      let improvements = ['Work on technical depth', 'Practice clear explanations'];
+        if (process.env.GEMINI_API_KEY) {
+          try {
+            const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: evaluationPrompt,
+            });
 
-      if (process.env.GEMINI_API_KEY) {
-        try {
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: evaluationPrompt,
-          });
+            const raw = (response.text || '').trim();
+            const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+            const parsed = JSON.parse(jsonStr);
 
-          const raw = (response.text || '').trim();
-          const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-          const parsed = JSON.parse(jsonStr);
-
-          score = Math.min(100, Math.max(0, Number(parsed.score) || 70));
-          if (parsed.feedback) feedback = parsed.feedback;
-          if (Array.isArray(parsed.strengths)) strengths = parsed.strengths.slice(0, 3);
-          if (Array.isArray(parsed.improvements)) improvements = parsed.improvements.slice(0, 3);
-        } catch (aiErr) {
-          console.error('AI evaluation failed, using defaults:', aiErr.message);
+            score = Math.min(100, Math.max(0, Number(parsed.score) || 70));
+            if (parsed.feedback) feedback = parsed.feedback;
+            if (Array.isArray(parsed.strengths)) strengths = parsed.strengths.slice(0, 3);
+            if (Array.isArray(parsed.improvements)) improvements = parsed.improvements.slice(0, 3);
+          } catch (aiErr) {
+            console.error('AI evaluation failed, using defaults:', aiErr.message);
+          }
+        } else {
+          console.warn('GEMINI_API_KEY not set. Using fallback scoring.');
         }
-      } else {
-        console.warn('GEMINI_API_KEY not set. Using fallback scoring.');
       }
 
       const updateDoc = {
@@ -862,7 +1000,8 @@ Sum up the scores for all questions to get the total out of 100.`;
         score,
         feedback,
         strengths,
-        improvements
+        improvements,
+        ...(savedVallyMetrics ? { vallyMetrics: savedVallyMetrics } : {})
       };
 
       if (mongoUnavailable) {

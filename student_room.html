@@ -108,6 +108,7 @@
 
     // State variables
     let questionNum = 1;
+    const totalQuestions = 10;
     let timer = 0;
     let micOn = true;
     let camOn = true;
@@ -258,7 +259,7 @@
         utterance.onend = () => {
           isAIActive = false;
           updateIndicatorUI();
-          if (text.includes("concludes our interview questions")) {
+          if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
             endInterview();
           } else {
             startListening();
@@ -269,7 +270,7 @@
           console.error("TTS speech synthesis error:", err);
           isAIActive = false;
           updateIndicatorUI();
-          if (text.includes("concludes our interview questions")) {
+          if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
             endInterview();
           } else {
             startListening();
@@ -282,7 +283,7 @@
         // Fallback without TTS
         isAIActive = false;
         updateIndicatorUI();
-        if (text.includes("concludes our interview questions")) {
+        if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
           endInterview();
         } else {
           startListening();
@@ -620,6 +621,11 @@
         const res = await fetch(`/api/interview/sync?sessionId=${sessionId}`);
         const data = await res.json();
         if (data.session) {
+          if (data.session.status === 'completed') {
+            clearInterval(takeoverPoll);
+            window.location.href = `/student_report.html?sessionId=${encodeURIComponent(sessionId)}`;
+            return;
+          }
           adminMode = data.session.mode === 'admin';
           if (adminMode) {
             adminTakeoverAlert.style.display = 'block';

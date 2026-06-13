@@ -164,6 +164,9 @@
                 <strong style="color: white;">Overall Score</strong>
                 <span id="valOverall" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-primary);">82/100</span>
               </div>
+              <button id="endInterviewAdminBtn" class="btn-danger" style="width: 100%; margin-top: 1rem; padding: 0.5rem; font-size: 0.85rem;">
+                🛑 End Interview &amp; Send Score
+              </button>
             </div>
           </div>
 
@@ -231,13 +234,6 @@
       document.getElementById('valUnderstand').textContent = `${metrics.questionUnderstand}/10`;
       document.getElementById('valOverall').textContent = `${metrics.overallScore}/100`;
     }
-
-    // Jiggle metrics
-    setInterval(() => {
-      metrics.confidence = Math.min(10, Math.max(0, metrics.confidence + (Math.random() > 0.5 ? 1 : -1)));
-      metrics.nervousness = Math.min(10, Math.max(0, metrics.nervousness + (Math.random() > 0.5 ? 1 : -1)));
-      updateMetricsUI();
-    }, 5000);
 
     updateMetricsUI();
 
@@ -333,6 +329,7 @@
     // Syncing candidate data
     let lastStudentAnswer = '';
     let renderedMessages = [];
+    let isEnding = false;
 
     async function pollSync() {
       try {
@@ -341,6 +338,36 @@
         
         if (data.session) {
           const s = data.session;
+
+          if (s.status === 'completed' && !isEnding) {
+            isEnding = true;
+            try {
+              await fetch('/api/interview/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  sessionId,
+                  score: metrics.overallScore
+                })
+              });
+            } catch (err) {}
+            // Automatically redirect without blocking alert
+            window.location.href = '/admin_live_interviews.html';
+            return;
+          }
+
+          if (s.vallyMetrics) {
+            metrics.confidence = s.vallyMetrics.confidence;
+            metrics.vocabulary = s.vallyMetrics.vocabulary;
+            metrics.answering = s.vallyMetrics.answering;
+            metrics.nervousness = s.vallyMetrics.nervousness;
+            metrics.faceExpression = s.vallyMetrics.faceExpression;
+            metrics.questionUnderstand = s.vallyMetrics.questionUnderstand;
+            const sum = metrics.confidence + metrics.vocabulary + metrics.answering + metrics.nervousness + metrics.faceExpression + metrics.questionUnderstand;
+            metrics.overallScore = Math.round((sum / 60) * 100);
+            updateMetricsUI();
+          }
+
           const adminMode = s.mode === 'admin';
           
           aiStatusLabel.textContent = `AI Interviewer is ${adminMode ? 'Paused' : 'Active'}`;
@@ -436,6 +463,31 @@
     uploadFeedbackBtn.addEventListener('click', () => {
       alert("Functionality to upload training file. Please write feedback instead.");
     });
+
+    const endInterviewAdminBtn = document.getElementById('endInterviewAdminBtn');
+    if (endInterviewAdminBtn) {
+      endInterviewAdminBtn.addEventListener('click', async () => {
+        if (confirm("Are you sure you want to end this interview and push the score to the candidate?")) {
+          isEnding = true;
+          try {
+            await fetch('/api/interview/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId,
+                status: 'completed',
+                score: metrics.overallScore
+              })
+            });
+            alert("Interview ended and score sent to candidate.");
+            window.location.href = '/admin_live_interviews.html';
+          } catch (err) {
+            console.error("Failed to end interview:", err);
+            alert("Failed to end interview.");
+          }
+        }
+      });
+    }
 
     // Initializations
     initPeer();
