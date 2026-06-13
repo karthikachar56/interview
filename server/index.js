@@ -318,7 +318,7 @@ Respond ONLY with a valid JSON object in this exact format:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash-8b',
       contents: prompt,
     });
     const raw = (response.text || '').trim();
@@ -973,33 +973,32 @@ Question Understanding: ${savedVallyMetrics.questionUnderstand}
 Please incorporate these real-time behavioral metrics heavily into your final score and feedback.\n`;
         }
 
-        const evaluationPrompt = `You are an expert interview evaluator. Analyze this interview transcript and provide a detailed evaluation. You are also capable of generating questions online to complement your evaluation.
-
+          const evaluationPrompt = `You are an expert interview evaluator. Evaluate this interview transcript.
 TRANSCRIPT:
 ${transcriptStr}
 ${vallyMetricsStr}
 Evaluate the candidate and respond with ONLY valid JSON in this exact format (no markdown, no code blocks):
 {
   "score": <integer 0-100>,
-  "feedback": "<2-3 sentence overall feedback>",
-  "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
-  "improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"]
+  "feedback": "<1 short sentence overall feedback>",
+  "strengths": ["<1-2 words>", "<1-2 words>", "<1-2 words>"],
+  "improvements": ["<1-2 words>", "<1-2 words>", "<1-2 words>"]
 }
 
 Scoring criteria:
 There were 10 questions asked. Each question is worth exactly 10 marks (Total 100 marks).
-For EACH question asked by the INTERVIEWER, assess the CANDIDATE's answer and award marks as follows:
+For EACH question asked, award marks:
 - 10 marks: The person answers correctly.
 - 5 marks: The person answers correctly but half the answer is correct or partially complete.
 - 3 marks: The person is nervous but tries.
 - 2 marks: The person tries to answer but it's incorrect.
 - 0 marks: The person does not answer at all.
-Sum up the scores for all questions to get the total out of 100.`;
+Sum up the scores for all questions to get the total out of 100. Be concise to save time.`;
 
         if (process.env.GEMINI_API_KEY) {
           try {
             const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
+              model: 'gemini-1.5-flash-8b',
               contents: evaluationPrompt,
             });
 
