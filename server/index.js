@@ -852,10 +852,23 @@ async function startServer() {
   // leaderboard
   app.get('/api/leaderboard', async (req, res) => {
     try {
-      if (mongoUnavailable) {
-        const filtered = backupSessions.filter(s => s.status === 'completed' && s.score !== undefined);
-        filtered.sort((a, b) => b.score - a.score);
-        const sliced = filtered.slice(0, 25).map(s => ({
+      const getAggregatedFallback = () => {
+        const completed = backupSessions.filter(s => s.status === 'completed' && s.score !== undefined);
+        const map = new Map();
+        for (const s of completed) {
+          const key = s.usn;
+          if (!map.has(key)) {
+            map.set(key, { ...s, score: 0 });
+          }
+          const entry = map.get(key);
+          entry.score += s.score;
+          if (new Date(s.completedAt) > new Date(entry.completedAt)) {
+            entry.completedAt = s.completedAt;
+          }
+        }
+        const aggregated = Array.from(map.values());
+        aggregated.sort((a, b) => b.score - a.score);
+        return aggregated.slice(0, 25).map(s => ({
           studentName: s.studentName,
           usn: s.usn,
           college: s.college,
@@ -863,32 +876,41 @@ async function startServer() {
           score: s.score,
           completedAt: s.completedAt
         }));
-        return res.json({ leaderboard: sliced });
+      };
+
+      if (mongoUnavailable) {
+        return res.json({ leaderboard: getAggregatedFallback() });
       }
 
       const client = await connectDb();
       if (client) {
         const db = client.db(DB_NAME);
-        const items = await db.collection('interviewsessions')
-          .find({ status: 'completed', score: { $exists: true } })
-          .sort({ score: -1 })
-          .limit(25)
-          .project({ studentName: 1, usn: 1, college: 1, branch: 1, score: 1, completedAt: 1 })
-          .toArray();
+        const items = await db.collection('interviewsessions').aggregate([
+          { $match: { status: 'completed', score: { $exists: true } } },
+          { $group: {
+              _id: '$usn',
+              studentName: { $first: '$studentName' },
+              college: { $first: '$college' },
+              branch: { $first: '$branch' },
+              score: { $sum: '$score' },
+              completedAt: { $max: '$completedAt' }
+          }},
+          { $sort: { score: -1 } },
+          { $limit: 25 },
+          { $project: {
+              _id: 0,
+              usn: '$_id',
+              studentName: 1,
+              college: 1,
+              branch: 1,
+              score: 1,
+              completedAt: 1
+          }}
+        ]).toArray();
         return res.json({ leaderboard: items });
       }
 
-      const filtered = backupSessions.filter(s => s.status === 'completed' && s.score !== undefined);
-      filtered.sort((a, b) => b.score - a.score);
-      const sliced = filtered.slice(0, 25).map(s => ({
-        studentName: s.studentName,
-        usn: s.usn,
-        college: s.college,
-        branch: s.branch,
-        score: s.score,
-        completedAt: s.completedAt
-      }));
-      res.json({ leaderboard: sliced });
+      res.json({ leaderboard: getAggregatedFallback() });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to fetch leaderboard' });
