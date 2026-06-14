@@ -746,27 +746,29 @@ async function startServer() {
 
       const aiMessageCount = history.filter(msg => msg.role === 'ai' || msg.role === 'admin').length;
 
-      // Extract latest student answer and synchronously calculate metrics to prevent Vercel from killing the background task
-      const studentMsg = history.slice().reverse().find(m => m.role === 'student');
-      const aiMsg = history.slice().reverse().find(m => m.role === 'ai' || m.role === 'admin');
-      let currentMetrics = null;
-      if (studentMsg) {
-        try {
-          const questionText = aiMsg ? aiMsg.text : "Unknown question";
-          currentMetrics = await evaluateRealTimeMetrics(sessionId, studentMsg.text, questionText);
-        } catch (err) {
-          console.error("Metrics evaluation error", err);
-        }
-      }
-
       if (aiMessageCount < questions.length) {
-        res.json({ question: questions[aiMessageCount], metrics: currentMetrics });
+        res.json({ question: questions[aiMessageCount] });
       } else {
-        res.json({ question: "Thank you for your time today. That concludes our interview questions. We will get back to you soon!", metrics: currentMetrics });
+        res.json({ question: "Thank you for your time today. That concludes our interview questions. We will get back to you soon!" });
       }
     } catch (err) {
       console.error(err);
       res.json({ question: "Interesting. Can you elaborate more on this?" });
+    }
+  });
+
+  // interview evaluate (async background metrics evaluation)
+  app.post('/api/interview/evaluate', async (req, res) => {
+    try {
+      const { sessionId, answer, question } = req.body;
+      if (!sessionId || !answer) {
+        return res.status(400).json({ error: 'Missing sessionId or answer' });
+      }
+      const metrics = await evaluateRealTimeMetrics(sessionId, answer, question || "Unknown question");
+      res.json({ metrics });
+    } catch (err) {
+      console.error("Async evaluation handler error:", err);
+      res.status(500).json({ error: "Failed to evaluate metrics" });
     }
   });
 
@@ -951,6 +953,27 @@ async function startServer() {
 
       let savedVallyMetrics = null;
       let historyForScore = vallyMetricsHistory || [];
+
+      // Try to load the latest vallyMetricsHistory from the DB/fallback if possible
+      try {
+        if (mongoUnavailable) {
+          const s = backupSessions.find(x => x.sessionId === sessionId);
+          if (s && s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
+            historyForScore = s.vallyMetricsHistory;
+          }
+        } else {
+          const client = await connectDb();
+          if (client) {
+            const db = client.db(DB_NAME);
+            const s = await db.collection('interviewsessions').findOne({ sessionId });
+            if (s && s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
+              historyForScore = s.vallyMetricsHistory;
+            }
+          }
+        }
+      } catch (dbErr) {
+        console.warn("Could not fetch latest history from DB on complete, using client history:", dbErr);
+      }
       
       if (historyForScore.length > 0) {
         const count = historyForScore.length;

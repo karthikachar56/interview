@@ -542,7 +542,7 @@
         isAIActive = false;
         updateIndicatorUI();
       } else {
-        questionText.textContent = "AI is analyzing your answer...";
+        questionText.textContent = "Loading next question...";
         try {
           const res = await fetch('/api/interview/answer', {
             method: 'POST',
@@ -550,15 +550,33 @@
             body: JSON.stringify({ sessionId, answer: studentAnswer, history: transcript })
           });
           const data = await res.json();
-          if (data.metrics) {
-            clientVallyMetricsHistory.push(data.metrics);
-          }
+          
           questionText.textContent = data.question;
           transcript.push({ role: 'ai', text: data.question });
           questionNum++;
           questionNumBadge.textContent = `Question ${questionNum}`;
           
+          // Start speaking the next question immediately
           speakAndListen(data.question);
+
+          // Run evaluation in the background during AI speech to avoid latency
+          const prevAIIndex = transcript.length - 3;
+          const prevAIQuestion = prevAIIndex >= 0 ? transcript[prevAIIndex].text : "Unknown question";
+          
+          fetch('/api/interview/evaluate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, answer: studentAnswer, question: prevAIQuestion })
+          })
+          .then(evalRes => evalRes.json())
+          .then(evalData => {
+            if (evalData.metrics) {
+              clientVallyMetricsHistory.push(evalData.metrics);
+            }
+          })
+          .catch(evalErr => {
+            console.error("Background evaluation failed:", evalErr);
+          });
         } catch (err) {
           console.error("Failed to fetch next question:", err);
           isAIActive = false;
