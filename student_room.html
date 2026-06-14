@@ -573,6 +573,14 @@
             if (evalData.metrics) {
               clientVallyMetricsHistory.push(evalData.metrics);
             }
+            if (evalData.correctedText) {
+              // Dynamically correct the student transcript bubble with high-accuracy text
+              const msg = transcript.find(m => m.role === 'student' && m.text === studentAnswer);
+              if (msg) {
+                msg.text = evalData.correctedText;
+                renderTranscriptBubbles();
+              }
+            }
           })
           .catch(evalErr => {
             console.error("Background evaluation failed:", evalErr);

@@ -757,15 +757,66 @@ async function startServer() {
     }
   });
 
-  // interview evaluate (async background metrics evaluation)
+  // interview evaluate (async background metrics evaluation & AI transcription correction)
   app.post('/api/interview/evaluate', async (req, res) => {
     try {
       const { sessionId, answer, question } = req.body;
       if (!sessionId || !answer) {
         return res.status(400).json({ error: 'Missing sessionId or answer' });
       }
-      const metrics = await evaluateRealTimeMetrics(sessionId, answer, question || "Unknown question");
-      res.json({ metrics });
+
+      let finalAnswer = answer;
+
+      // Correct speech-to-text transcription with Gemini to fix garbled input
+      if (process.env.GEMINI_API_KEY && answer.trim().length > 2) {
+        try {
+          const corrResp = await ai.models.generateContent({
+            model: 'gemini-1.5-flash-8b',
+            contents: `You are an expert speech-to-text corrector. Correct obvious garbled/misheard words in this candidate response to the interview question.
+Context:
+Question Asked: "${question || "Unknown question"}"
+Raw Transcript: "${answer}"
+
+Make the text readable, correct words that sound similar but make no sense in context, and fix minor grammar errors. Keep the candidate's original meaning and style intact.
+Return ONLY the corrected transcription text with no additional wrapper or explanation.`
+          });
+          const corrected = (corrResp.text || '').trim();
+          if (corrected.length > 0) {
+            finalAnswer = corrected;
+
+            // Save the corrected answer to the database session transcript fallback/persistent store
+            if (mongoUnavailable) {
+              const session = backupSessions.find(s => s.sessionId === sessionId);
+              if (session && Array.isArray(session.transcript)) {
+                const msg = session.transcript.find(m => m.role === 'student' && m.text === answer);
+                if (msg) msg.text = corrected;
+                await saveSessionsFallback();
+              }
+            } else {
+              const client = await connectDb();
+              if (client) {
+                const db = client.db(DB_NAME);
+                const session = await db.collection('interviewsessions').findOne({ sessionId });
+                if (session && Array.isArray(session.transcript)) {
+                  const msg = session.transcript.find(m => m.role === 'student' && m.text === answer);
+                  if (msg) {
+                    msg.text = corrected;
+                    await db.collection('interviewsessions').updateOne(
+                      { sessionId },
+                      { $set: { transcript: session.transcript } }
+                    );
+                  }
+                }
+              }
+            }
+          }
+        } catch (corrErr) {
+          console.error("AI correction failed, using raw transcription:", corrErr);
+        }
+      }
+
+      const metrics = await evaluateRealTimeMetrics(sessionId, finalAnswer, question || "Unknown question");
+      res.json({ metrics, correctedText: finalAnswer });
     } catch (err) {
       console.error("Async evaluation handler error:", err);
       res.status(500).json({ error: "Failed to evaluate metrics" });
