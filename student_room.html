@@ -132,6 +132,7 @@
     // Transcriptions
     let finalTranscription = "";
     let interimTranscription = "";
+    let clientVallyMetricsHistory = [];
 
     // DOM Elements
     const liveVideo = document.getElementById('liveVideo');
@@ -428,6 +429,9 @@
             body: JSON.stringify({ sessionId, answer: studentAnswer, history: transcript })
           });
           const data = await res.json();
+          if (data.metrics) {
+            clientVallyMetricsHistory.push(data.metrics);
+          }
           questionText.textContent = data.question;
           transcript.push({ role: 'ai', text: data.question });
           questionNum++;
@@ -712,7 +716,7 @@
         await fetch('/api/interview/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, transcript: transcript })
+          body: JSON.stringify({ sessionId, transcript: transcript, vallyMetricsHistory: clientVallyMetricsHistory })
         });
       } catch (err) {
         console.error("Failed to log completion:", err);

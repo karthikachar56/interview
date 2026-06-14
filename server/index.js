@@ -378,12 +378,12 @@ Respond ONLY with a valid JSON object in this exact format:
           await db.collection('interviewsessions').updateOne(
             { sessionId },
             { $set: { vallyMetricsHistory: history, vallyMetrics } }
-          );
-        }
       }
     }
+    return metrics;
   } catch (err) {
     console.error("evaluateRealTimeMetrics error:", err);
+    return metrics || null;
   }
 }
 
@@ -747,19 +747,20 @@ async function startServer() {
       // Extract latest student answer and synchronously calculate metrics to prevent Vercel from killing the background task
       const studentMsg = history.slice().reverse().find(m => m.role === 'student');
       const aiMsg = history.slice().reverse().find(m => m.role === 'ai' || m.role === 'admin');
+      let currentMetrics = null;
       if (studentMsg) {
         try {
           const questionText = aiMsg ? aiMsg.text : "Unknown question";
-          await evaluateRealTimeMetrics(sessionId, studentMsg.text, questionText);
+          currentMetrics = await evaluateRealTimeMetrics(sessionId, studentMsg.text, questionText);
         } catch (err) {
           console.error("Metrics evaluation error", err);
         }
       }
 
       if (aiMessageCount < questions.length) {
-        res.json({ question: questions[aiMessageCount] });
+        res.json({ question: questions[aiMessageCount], metrics: currentMetrics });
       } else {
-        res.json({ question: "Thank you for your time today. That concludes our interview questions. We will get back to you soon!" });
+        res.json({ question: "Thank you for your time today. That concludes our interview questions. We will get back to you soon!", metrics: currentMetrics });
       }
     } catch (err) {
       console.error(err);
@@ -937,7 +938,7 @@ async function startServer() {
   // interview complete (Gemini Evaluation)
   app.post('/api/interview/complete', async (req, res) => {
     try {
-      const { sessionId, transcript } = req.body;
+      const { sessionId, transcript, vallyMetricsHistory } = req.body;
       if (!sessionId || !Array.isArray(transcript)) {
         return res.status(400).json({ error: 'Missing sessionId or transcript' });
       }
@@ -946,26 +947,12 @@ async function startServer() {
         .map(m => `${m.role === 'ai' ? 'INTERVIEWER' : m.role === 'student' ? 'CANDIDATE' : 'ADMIN'}: ${m.text}`)
         .join('\n');
 
-      let vallyMetricsStr = '';
       let savedVallyMetrics = null;
-      if (mongoUnavailable) {
-        const session = backupSessions.find(s => s.sessionId === sessionId);
-        if (session && session.vallyMetrics) savedVallyMetrics = session.vallyMetrics;
-      } else {
-        const client = await connectDb();
-        if (client) {
-          const db = client.db(DB_NAME);
-          const session = await db.collection('interviewsessions').findOne({ sessionId });
-          if (session && session.vallyMetrics) savedVallyMetrics = session.vallyMetrics;
-        }
-      }
-
-      const hasStudentAnswers = transcript.some(m => m.role === 'student');
-
+      let historyForScore = vallyMetricsHistory || [];
+      
       // Calculate real-time cumulative score from metrics instead of relying on the final AI evaluation
-      const sessionForScore = (mongoUnavailable ? backupSessions.find(x => x.sessionId === sessionId) : await connectDb().then(c => c ? c.db(DB_NAME).collection('interviewsessions').findOne({ sessionId }) : null)) || {};
-      const historyForScore = sessionForScore.vallyMetricsHistory || [];
       const calculatedTotalScore = historyForScore.reduce((sum, item) => sum + (item.answerScore || 0), 0);
+      const hasStudentAnswers = transcript.some(m => m.role === 'student');
       
       let score = Math.min(100, Math.max(0, calculatedTotalScore));
       let feedback = 'Good effort. Keep practicing to improve your interview skills.';
