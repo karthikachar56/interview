@@ -434,6 +434,9 @@
       isRecordingAnswer = true;
       updateIndicatorUI();
       
+      // Reset permission error state on new question to try and reconnect mic
+      hasPermissionError = false;
+      
       if (silenceTimer) clearTimeout(silenceTimer);
 
       startAnsweringPhase();
