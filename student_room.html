@@ -253,7 +253,7 @@
           console.error("Speech Recognition error:", event.error);
         }
         // Restart if it crashes or drops and we're supposed to be listening
-        if (isRecordingAnswer && !isAIActive && !isEnding && micOn) {
+        if (!isEnding && micOn) {
           setTimeout(() => {
             safeStartRecognition();
           }, 1000);
@@ -262,11 +262,14 @@
 
       recognition.onend = () => {
         isRecognitionRunning = false;
-        // Only restart if we are in the listening phase, not when AI is active
-        if (isRecordingAnswer && !isAIActive && !isEnding && micOn) {
+        // Always restart — mic is ALWAYS on during the interview
+        if (!isEnding && micOn) {
           safeStartRecognition();
         }
       };
+
+      // Start immediately — mic is always on
+      try { recognition.start(); } catch(e){}
     }
 
     // Speech Synthesis
@@ -276,7 +279,7 @@
     function speakAndListen(text) {
       isAIActive = true;
       isRecordingAnswer = false;  // block processing
-      safeStopRecognition();      // Stop the mic while AI speaks
+      // DO NOT stop recognition — mic stays always on to prevent startup delays
       updateIndicatorUI();
 
       if (!('speechSynthesis' in window)) {
@@ -312,10 +315,17 @@
         if (boundaryTimer) clearTimeout(boundaryTimer);
         if (fallbackTimer) clearTimeout(fallbackTimer);
         if (safetyTimer) clearTimeout(safetyTimer);
-        isAIActive = false;
-        updateIndicatorUI();
-        if (text.includes("concludes our interview questions") || questionNum > totalQuestions) endInterview();
-        else startListening();
+        
+        // Wait exactly 500ms for delayed speech recognition results to finish processing and get ignored
+        setTimeout(() => {
+          isAIActive = false;
+          updateIndicatorUI();
+          if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
+            endInterview();
+          } else {
+            startListening();
+          }
+        }, 500);
       };
 
       // Layer 1: onend (instant when Chrome cooperates)
@@ -350,7 +360,7 @@
       manualInput.value = '';
       isRecordingAnswer = true;
       updateIndicatorUI();
-      safeStartRecognition(); // Start/unmute mic now that AI finished
+      // Mic is already running continuously — no startup delays!
     }
 
     function updateIndicatorUI() {
@@ -430,7 +440,7 @@
       }
 
       if (silenceTimer) clearTimeout(silenceTimer);
-      safeStopRecognition(); // Stop mic while AI generates/evaluates next question
+      // DO NOT stop recognition — mic stays always on to prevent startup delays
       
       manualInput.value = "";
       isRecordingAnswer = false;
@@ -597,7 +607,7 @@
         toggleMicBtn.className = `control-btn ${!micOn ? 'danger' : ''}`;
         if (!micOn) {
           safeStopRecognition();
-        } else if (micOn && isRecordingAnswer) {
+        } else if (micOn) {
           safeStartRecognition();
         }
       }
