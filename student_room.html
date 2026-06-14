@@ -220,6 +220,12 @@
         }
       }, 1000);
 
+      // Start/seed the initial silence timer (10 seconds to start speaking)
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        handleAutoSubmit();
+      }, 10000);
+
       // Start speech recognition immediately
       safeStartRecognition();
     }
@@ -324,6 +330,17 @@
         interimTranscription = cleanTTSBleed(interim, currentQuestionText);
         renderTranscriptBubbles();
 
+        if (isRecordingAnswer) {
+          // Reset silence timer on active speech
+          if (silenceTimer) clearTimeout(silenceTimer);
+          
+          const hasSpeech = (finalTranscription + interimTranscription).trim().length > 0;
+          const silenceDuration = hasSpeech ? 2500 : 10000;
+          
+          silenceTimer = setTimeout(() => {
+            handleAutoSubmit();
+          }, silenceDuration);
+        }
       };
 
       recognition.onerror = (event) => {
@@ -856,6 +873,16 @@
     // Sync input events for manual typing
     manualInput.addEventListener('input', () => {
       renderTranscriptBubbles();
+      
+      // Reset silence timer on typing and clear answering timer
+      if (silenceTimer) clearTimeout(silenceTimer);
+      clearAnsweringTimer();
+      
+      if (isRecordingAnswer) {
+        silenceTimer = setTimeout(() => {
+          handleAutoSubmit();
+        }, 15000); // Give them 15 seconds of idle typing before auto-submitting
+      }
     });
 
     // Execute Initializations
