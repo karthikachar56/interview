@@ -378,6 +378,8 @@ Respond ONLY with a valid JSON object in this exact format:
           await db.collection('interviewsessions').updateOne(
             { sessionId },
             { $set: { vallyMetricsHistory: history, vallyMetrics } }
+          );
+        }
       }
     }
     return metrics;
