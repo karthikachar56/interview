@@ -178,6 +178,8 @@
 
     // Speech Recognition Setup
     let recognition = null;
+    let maxIgnoreIndex = -1;
+
     function initSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -189,13 +191,22 @@
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
+      recognition.onstart = () => {
+        maxIgnoreIndex = -1;
+      };
+
       recognition.onresult = (event) => {
         // Ignore everything while AI is speaking — prevents TTS bleed into transcript
-        if (isAIActive) return;
+        if (isAIActive) {
+          maxIgnoreIndex = event.results.length - 1;
+          return;
+        }
 
         let interim = '';
         let final = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (i <= maxIgnoreIndex) continue;
+
           if (event.results[i].isFinal) {
             final += event.results[i][0].transcript + ' ';
           } else {
@@ -278,11 +289,15 @@
 
       let done = false;
       let boundaryTimer = null;
+      let fallbackTimer = null;
+      let safetyTimer = null;
 
       const activate = () => {
         if (done) return;
         done = true;
         if (boundaryTimer) clearTimeout(boundaryTimer);
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        if (safetyTimer) clearTimeout(safetyTimer);
         isAIActive = false;
         updateIndicatorUI();
         if (text.includes("concludes our interview questions") || questionNum > totalQuestions) endInterview();
@@ -301,8 +316,15 @@
 
       // Layer 3: char-count timer — primary reliable fallback
       // Chrome TTS rate=1.0 ≈ 65ms/char. Add 300ms buffer = fires ~300ms after speech ends.
-      const speechMs = Math.max(1500, text.length * 65);
-      setTimeout(() => activate(), speechMs + 300);
+      utterance.onstart = () => {
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        const speechMs = Math.max(1500, text.length * 65);
+        fallbackTimer = setTimeout(() => activate(), speechMs + 300);
+      };
+
+      // Safety absolute timeout in case TTS engine hangs completely
+      const safetyMs = Math.max(15000, text.length * 100);
+      safetyTimer = setTimeout(() => activate(), safetyMs);
 
       window.speechSynthesis.speak(utterance);
     }
