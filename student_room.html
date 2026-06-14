@@ -190,6 +190,9 @@
       recognition.lang = 'en-US';
 
       recognition.onresult = (event) => {
+        // Ignore everything while AI is speaking — prevents TTS bleed into transcript
+        if (isAIActive) return;
+
         let interim = '';
         let final = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -306,6 +309,7 @@
 
     function startListening() {
       if (!micOn) return;
+      // Wipe any TTS bleed captured while AI was speaking
       finalTranscription = '';
       interimTranscription = '';
       manualInput.value = '';
