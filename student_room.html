@@ -209,10 +209,10 @@
         // Reset silence timer on active speech
         if (silenceTimer) clearTimeout(silenceTimer);
         
-        // 4 seconds of silence triggers auto-submit
+        // 7 seconds of silence triggers auto-submit
         silenceTimer = setTimeout(() => {
           handleAutoSubmit();
-        }, 4000);
+        }, 7000);
       };
 
       recognition.onerror = (event) => {
@@ -370,7 +370,7 @@
       if (!isRecordingAnswer) return;
 
       const typedAnswer = manualInput.value.trim();
-      const spokenAnswer = finalTranscription.trim();
+      const spokenAnswer = (finalTranscription + ' ' + interimTranscription).trim();
       const studentAnswer = [spokenAnswer, typedAnswer].filter(Boolean).join(' ').trim();
 
       if (!studentAnswer && !forceSubmit) {
