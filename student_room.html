@@ -179,8 +179,10 @@
     // Speech Recognition Setup
     let recognition = null;
     let isRecognitionRunning = false;
+    let hasPermissionError = false;
 
     function safeStartRecognition() {
+      if (hasPermissionError) return;
       if (recognition && !isRecognitionRunning && micOn && !isEnding) {
         try {
           recognition.start();
@@ -214,6 +216,7 @@
 
       recognition.onstart = () => {
         isRecognitionRunning = true;
+        hasPermissionError = false;
       };
 
       recognition.onresult = (event) => {
@@ -252,8 +255,11 @@
         if (event.error !== 'aborted') {
           console.error("Speech Recognition error:", event.error);
         }
-        // Restart if it crashes or drops and we're supposed to be listening
-        if (!isEnding && micOn) {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          hasPermissionError = true;
+        }
+        // Restart if it crashes or drops and we're supposed to be listening (and no permission error)
+        if (!isEnding && micOn && !hasPermissionError) {
           setTimeout(() => {
             safeStartRecognition();
           }, 1000);
@@ -262,8 +268,8 @@
 
       recognition.onend = () => {
         isRecognitionRunning = false;
-        // Always restart — mic is ALWAYS on during the interview
-        if (!isEnding && micOn) {
+        // Always restart — mic is ALWAYS on during the interview (if no permission error)
+        if (!isEnding && micOn && !hasPermissionError) {
           safeStartRecognition();
         }
       };
@@ -780,9 +786,9 @@
       // Re-trigger voice lists loading
     };
     
-    initSpeechRecognition();
     initWebSocket();
     initMedia().then(() => {
+      initSpeechRecognition();
       startInterview();
     });
   </script>
