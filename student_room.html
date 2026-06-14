@@ -285,10 +285,15 @@
         if (silenceTimer) clearTimeout(silenceTimer);
         
         if (isRecordingAnswer) {
-          // 7 seconds of silence triggers auto-submit
+          const hasSpeech = (finalTranscription + interimTranscription).trim().length > 0;
+          // Assistive Conversational Pause Detection:
+          // If the candidate has already started speaking, wait 2.5 seconds of silence before auto-submitting.
+          // If they haven't started speaking yet, give them 10 seconds to think.
+          const silenceDuration = hasSpeech ? 2500 : 10000;
+          
           silenceTimer = setTimeout(() => {
             handleAutoSubmit();
-          }, 7000);
+          }, silenceDuration);
         }
       };
 
@@ -402,7 +407,12 @@
       manualInput.value = '';
       isRecordingAnswer = true;
       updateIndicatorUI();
-      // Mic is already running continuously — no startup delays!
+      
+      // Start/seed the initial silence timer (10 seconds of thinking time to start speaking)
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        handleAutoSubmit();
+      }, 10000);
     }
 
     function updateIndicatorUI() {
@@ -815,6 +825,14 @@
     // Sync input events for manual typing
     manualInput.addEventListener('input', () => {
       renderTranscriptBubbles();
+      
+      // Reset silence timer on typing to prevent premature auto-submit
+      if (silenceTimer) clearTimeout(silenceTimer);
+      if (isRecordingAnswer) {
+        silenceTimer = setTimeout(() => {
+          handleAutoSubmit();
+        }, 15000); // Give them 15 seconds of idle typing before auto-submitting
+      }
     });
 
     // Execute Initializations
