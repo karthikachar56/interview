@@ -260,13 +260,11 @@
         utterance.pitch = 1.0;
 
         let hasEnded = false;
-        let chromeBugFix;
         let checkSpeakingInterval;
 
         const triggerEnd = () => {
           if (hasEnded) return;
           hasEnded = true;
-          if (chromeBugFix) clearInterval(chromeBugFix);
           if (checkSpeakingInterval) clearInterval(checkSpeakingInterval);
           isAIActive = false;
           updateIndicatorUI();
@@ -283,20 +281,15 @@
           triggerEnd();
         };
 
-        // Workaround for Chrome's 15-second TTS bug that causes onend to drop
-        chromeBugFix = setInterval(() => {
-          if (window.speechSynthesis.speaking) {
-            window.speechSynthesis.pause();
-            window.speechSynthesis.resume();
-          } else {
-            clearInterval(chromeBugFix);
-          }
-        }, 10000);
+        // Strict GC fix to prevent Chrome from dropping onend after 2nd/3rd question
+        window.utterances = window.utterances || [];
+        window.utterances.push(utterance);
+
+        let hasStarted = false;
+        utterance.onstart = () => { hasStarted = true; };
 
         // Highly accurate polling to turn mic on instantly when speech stops, bypassing broken onend events
-        let hasStarted = false;
         checkSpeakingInterval = setInterval(() => {
-          if (window.speechSynthesis.speaking) hasStarted = true;
           if (hasStarted && !window.speechSynthesis.speaking && !hasEnded) {
             triggerEnd();
           }
