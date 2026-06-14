@@ -261,10 +261,13 @@
 
         let hasEnded = false;
         let chromeBugFix;
+        let checkSpeakingInterval;
+
         const triggerEnd = () => {
           if (hasEnded) return;
           hasEnded = true;
           if (chromeBugFix) clearInterval(chromeBugFix);
+          if (checkSpeakingInterval) clearInterval(checkSpeakingInterval);
           isAIActive = false;
           updateIndicatorUI();
           if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
@@ -290,7 +293,16 @@
           }
         }, 10000);
 
-        // Ultimate fallback timer to guarantee the mic starts 
+        // Highly accurate polling to turn mic on instantly when speech stops, bypassing broken onend events
+        let hasStarted = false;
+        checkSpeakingInterval = setInterval(() => {
+          if (window.speechSynthesis.speaking) hasStarted = true;
+          if (hasStarted && !window.speechSynthesis.speaking && !hasEnded) {
+            triggerEnd();
+          }
+        }, 200);
+
+        // Ultimate fallback timer
         const fallbackMs = Math.min((text.split(' ').length / 2.5) * 1000 + 4000, 45000);
         setTimeout(triggerEnd, fallbackMs);
 
