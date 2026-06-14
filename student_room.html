@@ -369,16 +369,13 @@
         if (boundaryTimer) clearTimeout(boundaryTimer);
         if (fallbackTimer) clearTimeout(fallbackTimer);
         
-        // Wait exactly 1000ms for delayed speech recognition results to finish processing and get ignored
-        setTimeout(() => {
-          isAIActive = false;
-          updateIndicatorUI();
-          if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
-            endInterview();
-          } else {
-            startListening();
-          }
-        }, 1000);
+        isAIActive = false;
+        updateIndicatorUI();
+        if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
+          endInterview();
+        } else {
+          startListening();
+        }
       };
 
       // Layer 1: onend (instant when Chrome cooperates)
