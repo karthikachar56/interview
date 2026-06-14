@@ -282,26 +282,32 @@
         else startListening();
       };
 
-      utterance.onend    = () => activate();
-      utterance.onerror  = () => activate();
+      utterance.onend   = () => activate();
+      utterance.onerror = () => activate();
 
       // Speak — no delay
       window.speechSynthesis.speak(utterance);
 
-      // Wait 300ms for Chrome to actually start speaking, then poll without needing onstart.
-      // (onstart is unreliable after Q1 due to Chrome GC — don't depend on it at all)
+      // --- PRIMARY TRIGGER: character-count timer ---
+      // Chrome TTS at rate=1.0 speaks ~60ms per character.
+      // This fires ~500ms after speech should end — reliable regardless of Chrome bugs.
+      const speechDurationMs = Math.max(1500, text.length * 60);
+      setTimeout(() => activate(), speechDurationMs + 500);
+
+      // --- BONUS FAST PATH: speaking poll ---
+      // If Chrome correctly reports speaking state, this fires instantly when speech stops.
+      // Starts after 400ms so we don't falsely trigger during the brief gap between cancel() and speak().
       let pollId;
       setTimeout(() => {
         if (done) return;
+        let wasSpeaking = false;
         pollId = setInterval(() => {
           if (done) { clearInterval(pollId); return; }
-          if (!window.speechSynthesis.speaking) activate();
+          const sp = window.speechSynthesis.speaking;
+          if (sp) wasSpeaking = true;
+          if (wasSpeaking && !sp) activate();
         }, 100);
-      }, 300);
-
-      // Hard fallback: word-count-based max wait
-      const fallbackMs = Math.min((text.split(' ').length / 2.5) * 1000 + 4000, 40000);
-      setTimeout(activate, fallbackMs);
+      }, 400);
     }
 
     function startListening() {
