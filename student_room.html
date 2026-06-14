@@ -38,6 +38,10 @@
           <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-primary); border-radius: 50%; animation: pulse-bg 1s infinite;"></span>
           Listening to your answer... (Auto-submits after pause)
         </div>
+        <div id="thinkingTimerIndicator" style="margin-top: 0.5rem; display: none; align-items: center; gap: 0.5rem; color: var(--accent-secondary); font-size: 0.875rem;">
+          <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-secondary); border-radius: 50%; animation: pulse-bg 1.5s infinite;"></span>
+          ⏱️ Thinking countdown: <strong id="thinkingCount" style="color: var(--accent-danger); font-size: 1rem; margin-left: 0.25rem; margin-right: 0.25rem;">10</strong> seconds remaining to start speaking
+        </div>
       </div>
 
       <!-- Center Panel: Avatar & Video Views -->
@@ -181,6 +185,8 @@
     let isRecognitionRunning = false;
     let hasPermissionError = false;
     let currentQuestionText = "";
+    let thinkingCountdownInterval = null;
+    let thinkingCountdownValue = 10;
 
     function cleanTTSBleed(transcription, question) {
       if (!question || !transcription) return transcription;
@@ -286,6 +292,17 @@
         
         if (isRecordingAnswer) {
           const hasSpeech = (finalTranscription + interimTranscription).trim().length > 0;
+          
+          if (hasSpeech) {
+            // Stop and hide the thinking countdown timer as they have started speaking!
+            if (thinkingCountdownInterval) {
+              clearInterval(thinkingCountdownInterval);
+              thinkingCountdownInterval = null;
+            }
+            const thinkingIndicator = document.getElementById('thinkingTimerIndicator');
+            if (thinkingIndicator) thinkingIndicator.style.display = 'none';
+          }
+          
           // Assistive Conversational Pause Detection:
           // If the candidate has already started speaking, wait 2.5 seconds of silence before auto-submitting.
           // If they haven't started speaking yet, give them 10 seconds to think.
@@ -408,9 +425,33 @@
       isRecordingAnswer = true;
       updateIndicatorUI();
       
+      // Start the visual thinking countdown timer
+      thinkingCountdownValue = 10;
+      const thinkingCountEl = document.getElementById('thinkingCount');
+      if (thinkingCountEl) thinkingCountEl.textContent = thinkingCountdownValue;
+      const thinkingIndicator = document.getElementById('thinkingTimerIndicator');
+      if (thinkingIndicator) thinkingIndicator.style.display = 'flex';
+      
+      if (thinkingCountdownInterval) clearInterval(thinkingCountdownInterval);
+      thinkingCountdownInterval = setInterval(() => {
+        thinkingCountdownValue--;
+        if (thinkingCountdownValue <= 0) {
+          clearInterval(thinkingCountdownInterval);
+          thinkingCountdownInterval = null;
+          if (thinkingIndicator) thinkingIndicator.style.display = 'none';
+        } else {
+          if (thinkingCountEl) thinkingCountEl.textContent = thinkingCountdownValue;
+        }
+      }, 1000);
+
       // Start/seed the initial silence timer (10 seconds of thinking time to start speaking)
       if (silenceTimer) clearTimeout(silenceTimer);
       silenceTimer = setTimeout(() => {
+        if (thinkingCountdownInterval) {
+          clearInterval(thinkingCountdownInterval);
+          thinkingCountdownInterval = null;
+        }
+        if (thinkingIndicator) thinkingIndicator.style.display = 'none';
         handleAutoSubmit();
       }, 10000);
     }
@@ -419,6 +460,13 @@
       if (isAIActive) {
         aiSpeakingIndicator.style.display = 'flex';
         candidateListeningIndicator.style.display = 'none';
+        if (thinkingCountdownInterval) {
+          clearInterval(thinkingCountdownInterval);
+          thinkingCountdownInterval = null;
+        }
+        const thinkingIndicator = document.getElementById('thinkingTimerIndicator');
+        if (thinkingIndicator) thinkingIndicator.style.display = 'none';
+        
         speakingText.textContent = adminMode ? "Admin is speaking..." : "AI is speaking...";
         interviewerStateLabel.textContent = adminMode ? "Admin Speaking" : "AI Speaking";
         aiAvatarRing.classList.add('active-speaking', 'animate-pulse-ring');
@@ -440,6 +488,13 @@
       } else {
         aiSpeakingIndicator.style.display = 'none';
         candidateListeningIndicator.style.display = 'none';
+        if (thinkingCountdownInterval) {
+          clearInterval(thinkingCountdownInterval);
+          thinkingCountdownInterval = null;
+        }
+        const thinkingIndicator = document.getElementById('thinkingTimerIndicator');
+        if (thinkingIndicator) thinkingIndicator.style.display = 'none';
+        
         interviewerStateLabel.textContent = "Standby";
         aiAvatarRing.classList.remove('active-speaking', 'animate-pulse-ring');
         actionBtn.style.display = 'none';
@@ -492,6 +547,13 @@
       }
 
       if (silenceTimer) clearTimeout(silenceTimer);
+      if (thinkingCountdownInterval) {
+        clearInterval(thinkingCountdownInterval);
+        thinkingCountdownInterval = null;
+      }
+      const thinkingIndicator = document.getElementById('thinkingTimerIndicator');
+      if (thinkingIndicator) thinkingIndicator.style.display = 'none';
+      
       // DO NOT stop recognition — mic stays always on to prevent startup delays
       
       manualInput.value = "";
@@ -826,8 +888,15 @@
     manualInput.addEventListener('input', () => {
       renderTranscriptBubbles();
       
-      // Reset silence timer on typing to prevent premature auto-submit
+      // Reset silence and thinking countdown timer on typing
       if (silenceTimer) clearTimeout(silenceTimer);
+      if (thinkingCountdownInterval) {
+        clearInterval(thinkingCountdownInterval);
+        thinkingCountdownInterval = null;
+      }
+      const thinkingIndicator = document.getElementById('thinkingTimerIndicator');
+      if (thinkingIndicator) thinkingIndicator.style.display = 'none';
+      
       if (isRecordingAnswer) {
         silenceTimer = setTimeout(() => {
           handleAutoSubmit();
