@@ -212,6 +212,7 @@
       const ansIndicator = document.getElementById('answeringTimerIndicator');
       if (ansIndicator) ansIndicator.style.display = 'none';
       isAnsweringPhaseStarted = false;
+      safeStopRecognition();
     }
 
     function startAnsweringPhase() {
@@ -248,6 +249,9 @@
           handleAutoSubmit();
         }, 2500);
       }
+
+      // Start speech recognition (mic on) strictly after thinking timer ends
+      safeStartRecognition();
     }
 
     function cleanTTSBleed(transcription, question) {
@@ -369,8 +373,8 @@
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           hasPermissionError = true;
         }
-        // Restart if it crashes or drops and we're supposed to be listening (and no permission error)
-        if (!isEnding && micOn && !hasPermissionError) {
+        // Restart if it crashes or drops and we're supposed to be listening (and no permission error) during the answering phase
+        if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer && isAnsweringPhaseStarted) {
           setTimeout(() => {
             safeStartRecognition();
           }, 1000);
@@ -379,14 +383,11 @@
 
       recognition.onend = () => {
         isRecognitionRunning = false;
-        // Always restart — mic is ALWAYS on during the interview (if no permission error)
-        if (!isEnding && micOn && !hasPermissionError) {
+        // Restart only if we're in the answering phase (and no permission error)
+        if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer && isAnsweringPhaseStarted) {
           safeStartRecognition();
         }
       };
-
-      // Start immediately — mic is always on
-      try { recognition.start(); } catch(e){}
     }
 
     // Speech Synthesis
@@ -753,7 +754,7 @@
         toggleMicBtn.className = `control-btn ${!micOn ? 'danger' : ''}`;
         if (!micOn) {
           safeStopRecognition();
-        } else if (micOn) {
+        } else if (micOn && isRecordingAnswer && isAnsweringPhaseStarted) {
           safeStartRecognition();
         }
       }
