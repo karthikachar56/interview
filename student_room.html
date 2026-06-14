@@ -220,8 +220,8 @@
       };
 
       recognition.onresult = (event) => {
-        // Ignore everything while AI is speaking
-        if (isAIActive) return;
+        // Ignore everything while AI is speaking or queued to speak
+        if (isAIActive || window.speechSynthesis.speaking) return;
 
         let interim = '';
         let final = '';
@@ -313,14 +313,19 @@
       let done = false;
       let boundaryTimer = null;
       let fallbackTimer = null;
-      let safetyTimer = null;
 
       const activate = () => {
         if (done) return;
+        
+        // If TTS is still actively speaking or queued, check again in 200ms
+        if (window.speechSynthesis.speaking) {
+          setTimeout(() => activate(), 200);
+          return;
+        }
+        
         done = true;
         if (boundaryTimer) clearTimeout(boundaryTimer);
         if (fallbackTimer) clearTimeout(fallbackTimer);
-        if (safetyTimer) clearTimeout(safetyTimer);
         
         // Wait exactly 500ms for delayed speech recognition results to finish processing and get ignored
         setTimeout(() => {
@@ -344,17 +349,9 @@
         boundaryTimer = setTimeout(() => activate(), 350);
       };
 
-      // Layer 3: char-count timer — primary reliable fallback
-      // Chrome TTS rate=1.0 ≈ 65ms/char. Add 300ms buffer = fires ~300ms after speech ends.
-      utterance.onstart = () => {
-        if (fallbackTimer) clearTimeout(fallbackTimer);
-        const speechMs = Math.max(1500, text.length * 65);
-        fallbackTimer = setTimeout(() => activate(), speechMs + 300);
-      };
-
-      // Safety absolute timeout in case TTS engine hangs completely
-      const safetyMs = Math.max(15000, text.length * 100);
-      safetyTimer = setTimeout(() => activate(), safetyMs);
+      // Layer 3: char-count timer — primary reliable fallback (runs immediately)
+      const speechMs = Math.max(1500, text.length * 65);
+      fallbackTimer = setTimeout(() => activate(), speechMs + 300);
 
       window.speechSynthesis.speak(utterance);
     }
