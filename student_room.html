@@ -129,7 +129,6 @@
     let screenStream = null;
     let peer = null;
     let socket = null;
-    let silenceTimer = null;
     let captureTimer = null;
     let lastAdminMessage = "";
     
@@ -218,12 +217,6 @@
           if (answeringCountEl) answeringCountEl.textContent = answeringCountdownValue;
         }
       }, 1000);
-
-      // Start/seed the initial silence timer (10 seconds to start speaking)
-      if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        handleAutoSubmit();
-      }, 10000);
 
       // Start speech recognition immediately
       safeStartRecognition();
@@ -328,18 +321,6 @@
         }
         interimTranscription = cleanTTSBleed(interim, currentQuestionText);
         renderTranscriptBubbles();
-
-        if (isRecordingAnswer) {
-          // Reset silence timer on active speech
-          if (silenceTimer) clearTimeout(silenceTimer);
-          
-          const hasSpeech = (finalTranscription + interimTranscription).trim().length > 0;
-          const silenceDuration = hasSpeech ? 2500 : 10000;
-          
-          silenceTimer = setTimeout(() => {
-            handleAutoSubmit();
-          }, silenceDuration);
-        }
       };
 
       recognition.onerror = (event) => {
@@ -455,8 +436,6 @@
       
       // Reset permission error state on new question to try and reconnect mic
       hasPermissionError = false;
-      
-      if (silenceTimer) clearTimeout(silenceTimer);
 
       startAnsweringPhase();
     }
@@ -541,7 +520,6 @@
         return;
       }
 
-      if (silenceTimer) clearTimeout(silenceTimer);
       clearAnsweringTimer();
       
       manualInput.value = "";
@@ -876,15 +854,8 @@
     manualInput.addEventListener('input', () => {
       renderTranscriptBubbles();
       
-      // Reset silence timer on typing and clear answering timer
-      if (silenceTimer) clearTimeout(silenceTimer);
-      clearAnsweringTimer();
-      
-      if (isRecordingAnswer) {
-        silenceTimer = setTimeout(() => {
-          handleAutoSubmit();
-        }, 15000); // Give them 15 seconds of idle typing before auto-submitting
-      }
+      // Stop speech recognition when manual typing starts
+      safeStopRecognition();
     });
 
     // Execute Initializations
