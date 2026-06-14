@@ -236,6 +236,9 @@
           try { recognition.start(); } catch(e){}
         }
       };
+
+      // Start immediately — mic is always on
+      try { recognition.start(); } catch(e){}
     }
 
     // Speech Synthesis
@@ -391,9 +394,7 @@
       }
 
       if (silenceTimer) clearTimeout(silenceTimer);
-      if (recognition) {
-        try { recognition.stop(); } catch(e){}
-      }
+      // DO NOT stop recognition — mic stays always on
       
       manualInput.value = "";
       isRecordingAnswer = false;
