@@ -180,6 +180,44 @@
     let recognition = null;
     let isRecognitionRunning = false;
     let hasPermissionError = false;
+    let currentQuestionText = "";
+
+    function cleanTTSBleed(transcription, question) {
+      if (!question || !transcription) return transcription;
+      const cleanStr = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      const qClean = cleanStr(question);
+      const tClean = cleanStr(transcription);
+      
+      if (!qClean || !tClean) return transcription;
+      
+      // If the transcription contains the entire question, filter it out
+      if (tClean.includes(qClean)) {
+        return transcription.substring(transcription.toLowerCase().indexOf(qClean) + qClean.length).trim();
+      }
+      
+      // Split into words
+      const qWords = qClean.split(/\s+/);
+      const tWords = tClean.split(/\s+/);
+      
+      // If transcription is a subset of the question words in the exact same order, ignore it
+      if (tWords.length > 0 && tWords.length <= qWords.length) {
+        let isSubset = true;
+        let lastIdx = -1;
+        for (let w of tWords) {
+          const idx = qWords.indexOf(w, lastIdx + 1);
+          if (idx === -1) {
+            isSubset = false;
+            break;
+          }
+          lastIdx = idx;
+        }
+        if (isSubset) {
+          return "";
+        }
+      }
+      
+      return transcription;
+    }
 
     function safeStartRecognition() {
       if (hasPermissionError) return;
@@ -234,10 +272,13 @@
         }
         
         if (final) {
-          finalTranscription += final;
-          syncDraft(finalTranscription);
+          const cleanedFinal = cleanTTSBleed(final, currentQuestionText);
+          if (cleanedFinal) {
+            finalTranscription += cleanedFinal;
+            syncDraft(finalTranscription);
+          }
         }
-        interimTranscription = interim;
+        interimTranscription = cleanTTSBleed(interim, currentQuestionText);
         renderTranscriptBubbles();
 
         // Reset silence timer on active speech
@@ -285,6 +326,7 @@
     function speakAndListen(text) {
       isAIActive = true;
       isRecordingAnswer = false;  // block processing
+      currentQuestionText = text;  // Store current question text for bleed cleanup
       // DO NOT stop recognition — mic stays always on to prevent startup delays
       updateIndicatorUI();
 
@@ -327,7 +369,7 @@
         if (boundaryTimer) clearTimeout(boundaryTimer);
         if (fallbackTimer) clearTimeout(fallbackTimer);
         
-        // Wait exactly 500ms for delayed speech recognition results to finish processing and get ignored
+        // Wait exactly 1000ms for delayed speech recognition results to finish processing and get ignored
         setTimeout(() => {
           isAIActive = false;
           updateIndicatorUI();
@@ -336,7 +378,7 @@
           } else {
             startListening();
           }
-        }, 500);
+        }, 1000);
       };
 
       // Layer 1: onend (instant when Chrome cooperates)
