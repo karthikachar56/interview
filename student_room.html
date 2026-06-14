@@ -551,10 +551,13 @@
       } else {
         questionText.textContent = "Loading next question...";
         try {
+          const savedQuestions = localStorage.getItem('selectedQuestions');
+          const selectedQuestions = savedQuestions ? JSON.parse(savedQuestions) : null;
+          
           const res = await fetch('/api/interview/answer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId, answer: studentAnswer, history: transcript })
+            body: JSON.stringify({ sessionId, answer: studentAnswer, history: transcript, selectedQuestions })
           });
           const data = await res.json();
           
@@ -833,6 +836,9 @@
         const data = await res.json();
         if (data.round) {
           document.getElementById('roundTitle').textContent = data.round;
+        }
+        if (data.selectedQuestions) {
+          localStorage.setItem('selectedQuestions', JSON.stringify(data.selectedQuestions));
         }
         questionText.textContent = data.question;
         transcript.push({ role: 'ai', text: data.question });

@@ -714,7 +714,7 @@ async function startServer() {
         }
       }
 
-      res.json({ question: questions[0], round });
+      res.json({ question: questions[0], round, selectedQuestions: questions });
     } catch (err) {
       console.error(err);
       res.json({ question: "Hello! Let's start with your background. Can you tell me about yourself?" });
@@ -724,22 +724,24 @@ async function startServer() {
   // interview answer
   app.post('/api/interview/answer', async (req, res) => {
     try {
-      const { sessionId, history } = req.body;
+      const { sessionId, history, selectedQuestions } = req.body;
       let round = "Technical Round";
-      let questions = null;
+      let questions = selectedQuestions;
 
-      if (sessionId) {
-        if (mongoUnavailable) {
-          const s = backupSessions.find(x => x.sessionId === sessionId);
-          if (s && s.round) round = s.round;
-          if (s && s.selectedQuestions) questions = s.selectedQuestions;
-        } else {
-          const client = await connectDb();
-          if (client) {
-            const db = client.db(DB_NAME);
-            const s = await db.collection('interviewsessions').findOne({ sessionId });
+      if (!questions || questions.length === 0) {
+        if (sessionId) {
+          if (mongoUnavailable) {
+            const s = backupSessions.find(x => x.sessionId === sessionId);
             if (s && s.round) round = s.round;
             if (s && s.selectedQuestions) questions = s.selectedQuestions;
+          } else {
+            const client = await connectDb();
+            if (client) {
+              const db = client.db(DB_NAME);
+              const s = await db.collection('interviewsessions').findOne({ sessionId });
+              if (s && s.round) round = s.round;
+              if (s && s.selectedQuestions) questions = s.selectedQuestions;
+            }
           }
         }
       }
