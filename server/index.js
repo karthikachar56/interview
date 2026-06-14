@@ -295,8 +295,8 @@ function getAdminAuth(req) {
 }
 
 async function evaluateRealTimeMetrics(sessionId, studentAnswer, questionAsked) {
-  if (!process.env.GEMINI_API_KEY) return;
-  if (!studentAnswer || studentAnswer.trim().length === 0) return;
+  let defaultMetrics = { confidence: 6, vocabulary: 6, answering: 6, nervousness: 6, faceExpression: 6, questionUnderstand: 6, answerScore: 6 };
+  if (!process.env.GEMINI_API_KEY || !studentAnswer || studentAnswer.trim().length === 0) return defaultMetrics;
 
   const prompt = `You are an expert interview evaluator.
 The interviewer asked: "${questionAsked}"
@@ -951,6 +951,18 @@ async function startServer() {
 
       let savedVallyMetrics = null;
       let historyForScore = vallyMetricsHistory || [];
+      
+      if (historyForScore.length > 0) {
+        const count = historyForScore.length;
+        savedVallyMetrics = {
+          confidence: Math.round(historyForScore.reduce((a, b) => a + (b.confidence || 0), 0) / count),
+          vocabulary: Math.round(historyForScore.reduce((a, b) => a + (b.vocabulary || 0), 0) / count),
+          answering: Math.round(historyForScore.reduce((a, b) => a + (b.answering || 0), 0) / count),
+          nervousness: Math.round(historyForScore.reduce((a, b) => a + (b.nervousness || 0), 0) / count),
+          faceExpression: Math.round(historyForScore.reduce((a, b) => a + (b.faceExpression || 0), 0) / count),
+          questionUnderstand: Math.round(historyForScore.reduce((a, b) => a + (b.questionUnderstand || 0), 0) / count)
+        };
+      }
       
       // Calculate real-time cumulative score from metrics instead of relying on the final AI evaluation
       const calculatedTotalScore = historyForScore.reduce((sum, item) => sum + (item.answerScore || 0), 0);
