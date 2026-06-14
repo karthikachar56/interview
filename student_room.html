@@ -209,10 +209,12 @@
         // Reset silence timer on active speech
         if (silenceTimer) clearTimeout(silenceTimer);
         
-        // 7 seconds of silence triggers auto-submit
-        silenceTimer = setTimeout(() => {
-          handleAutoSubmit();
-        }, 7000);
+        if (isRecordingAnswer) {
+          // 7 seconds of silence triggers auto-submit
+          silenceTimer = setTimeout(() => {
+            handleAutoSubmit();
+          }, 7000);
+        }
       };
 
       recognition.onerror = (event) => {
