@@ -231,7 +231,8 @@
       };
 
       recognition.onend = () => {
-        if (isRecordingAnswer) {
+        // Always restart — mic is ALWAYS on during the interview
+        if (!isEnding) {
           try { recognition.start(); } catch(e){}
         }
       };
@@ -243,8 +244,8 @@
 
     function speakAndListen(text) {
       isAIActive = true;
-      isRecordingAnswer = false;
-      if (recognition) { try { recognition.stop(); } catch(e) {} }
+      isRecordingAnswer = false;  // block processing — mic is still ON but we won't submit
+      // DO NOT stop recognition — mic stays always on
       updateIndicatorUI();
 
       if (!('speechSynthesis' in window)) {
@@ -255,7 +256,6 @@
         return;
       }
 
-      // Cancel current speech
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
@@ -265,59 +265,39 @@
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
 
-      // GC guard: keep strong reference
+      // GC guard
       currentUtterance = utterance;
       _ttsGcGuard.push(utterance);
       if (_ttsGcGuard.length > 5) _ttsGcGuard.shift();
 
       let done = false;
+      let boundaryTimer = null;
 
       const activate = () => {
         if (done) return;
         done = true;
-        if (pollId) clearInterval(pollId);
+        if (boundaryTimer) clearTimeout(boundaryTimer);
         isAIActive = false;
         updateIndicatorUI();
         if (text.includes("concludes our interview questions") || questionNum > totalQuestions) endInterview();
         else startListening();
       };
 
+      // Layer 1: onend (instant when Chrome cooperates)
       utterance.onend   = () => activate();
       utterance.onerror = () => activate();
 
-      // --- PRIMARY TRIGGER: onboundary rolling timer ---
-      // onboundary fires for every word — NOT affected by Chrome GC (fires repeatedly so Chrome can't kill it).
-      // After each word we reset a 400ms timer. When the last word fires, the timer runs to completion
-      // and activates the mic within 400ms of speech ending — guaranteed.
-      let boundaryTimer = null;
+      // Layer 2: onboundary rolling timer (immune to GC — fires per word)
       utterance.onboundary = () => {
         if (boundaryTimer) clearTimeout(boundaryTimer);
-        boundaryTimer = setTimeout(() => activate(), 400);
+        boundaryTimer = setTimeout(() => activate(), 350);
       };
 
-      // --- FAST PATH: native onend (works reliably on Q1, sometimes Q2+) ---
-      // Already set above — no change needed.
+      // Layer 3: char-count timer — primary reliable fallback
+      // Chrome TTS rate=1.0 ≈ 65ms/char. Add 300ms buffer = fires ~300ms after speech ends.
+      const speechMs = Math.max(1500, text.length * 65);
+      setTimeout(() => activate(), speechMs + 300);
 
-      // --- SAFETY NET: speaking poll starts 400ms after speak() ---
-      // Catches cases where onboundary never fires (very short text / no word events).
-      let pollId;
-      setTimeout(() => {
-        if (done) return;
-        let wasSpeaking = false;
-        pollId = setInterval(() => {
-          if (done) { clearInterval(pollId); return; }
-          const sp = window.speechSynthesis.speaking;
-          if (sp) wasSpeaking = true;
-          if (wasSpeaking && !sp) activate();
-        }, 100);
-      }, 400);
-
-      // --- ABSOLUTE FALLBACK: character-count timer ---
-      // Chrome TTS at rate=1.0 ≈ 71ms per character. Fires ~500ms after speech should end.
-      const speechDurationMs = Math.max(2000, text.length * 71);
-      setTimeout(() => activate(), speechDurationMs + 500);
-
-      // Speak
       window.speechSynthesis.speak(utterance);
     }
 
@@ -328,8 +308,9 @@
       manualInput.value = '';
       isRecordingAnswer = true;
       updateIndicatorUI();
+      // Mic is already running (continuous mode) — just ensure it's started
       if (recognition) {
-        try { recognition.start(); } catch(e){}
+        try { recognition.start(); } catch(e){ /* already running — that's fine */ }
       }
     }
 
