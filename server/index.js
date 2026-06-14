@@ -954,7 +954,12 @@ async function startServer() {
 
       const hasStudentAnswers = transcript.some(m => m.role === 'student');
 
-      let score = 70;
+      // Calculate real-time cumulative score from metrics instead of relying on the final AI evaluation
+      const sessionForScore = (mongoUnavailable ? backupSessions.find(x => x.sessionId === sessionId) : await connectDb().then(c => c ? c.db(DB_NAME).collection('interviewsessions').findOne({ sessionId }) : null)) || {};
+      const historyForScore = sessionForScore.vallyMetricsHistory || [];
+      const calculatedTotalScore = historyForScore.reduce((sum, item) => sum + (item.answerScore || 0), 0);
+      
+      let score = Math.min(100, Math.max(0, calculatedTotalScore));
       let feedback = 'Good effort. Keep practicing to improve your interview skills.';
       let strengths = ['Showed willingness to engage', 'Attempted all questions'];
       let improvements = ['Work on technical depth', 'Practice clear explanations'];
@@ -962,7 +967,6 @@ async function startServer() {
       if (!hasStudentAnswers) {
         score = 0;
         feedback = 'The candidate exited the interview without providing any answers.';
-        feedback = "The candidate did not provide any answers during the interview.";
       } else {
         const transcriptStr = transcript.map(m => `${m.role === 'student' ? 'CANDIDATE' : 'INTERVIEWER'}: ${m.text}`).join('\n');
         
