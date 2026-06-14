@@ -36,15 +36,7 @@
         </div>
         <div id="candidateListeningIndicator" style="margin-top: auto; padding-top: 1rem; display: none; align-items: center; gap: 0.5rem; color: var(--accent-primary); font-size: 0.875rem;">
           <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-primary); border-radius: 50%; animation: pulse-bg 1s infinite;"></span>
-          Listening to your answer... (Auto-submits when timer ends)
-        </div>
-        <div id="thinkingTimerIndicator" style="margin-top: 0.5rem; display: none; align-items: center; gap: 0.5rem; color: var(--accent-secondary); font-size: 0.875rem;">
-          <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-secondary); border-radius: 50%; animation: pulse-bg 1.5s infinite;"></span>
-          ⏱️ Thinking countdown: <strong id="thinkingCount" style="color: var(--accent-danger); font-size: 1rem; margin-left: 0.25rem; margin-right: 0.25rem;">10</strong> seconds remaining to start speaking
-        </div>
-        <div id="answeringTimerIndicator" style="margin-top: 0.5rem; display: none; align-items: center; gap: 0.5rem; color: var(--accent-primary); font-size: 0.875rem;">
-          <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-primary); border-radius: 50%; animation: pulse-bg 1s infinite;"></span>
-          ⏱️ Answering time remaining: <strong id="answeringCount" style="color: var(--accent-danger); font-size: 1rem; margin-left: 0.25rem; margin-right: 0.25rem;">60</strong> seconds
+          Listening to your answer... (Auto-submits after pause)
         </div>
       </div>
 
@@ -189,64 +181,7 @@
     let isRecognitionRunning = false;
     let hasPermissionError = false;
     let currentQuestionText = "";
-    let thinkingCountdownInterval = null;
-    let thinkingCountdownValue = 10;
-    let answeringCountdownInterval = null;
-    let answeringCountdownValue = 60;
-    let isAnsweringPhaseStarted = false;
 
-    function clearThinkingTimer() {
-      if (thinkingCountdownInterval) {
-        clearInterval(thinkingCountdownInterval);
-        thinkingCountdownInterval = null;
-      }
-      const thinkIndicator = document.getElementById('thinkingTimerIndicator');
-      if (thinkIndicator) thinkIndicator.style.display = 'none';
-    }
-
-    function clearAnsweringTimer() {
-      if (answeringCountdownInterval) {
-        clearInterval(answeringCountdownInterval);
-        answeringCountdownInterval = null;
-      }
-      const ansIndicator = document.getElementById('answeringTimerIndicator');
-      if (ansIndicator) ansIndicator.style.display = 'none';
-      isAnsweringPhaseStarted = false;
-      safeStopRecognition();
-    }
-
-    function startAnsweringPhase() {
-      if (isAnsweringPhaseStarted) return;
-      isAnsweringPhaseStarted = true;
-
-      clearThinkingTimer();
-
-      answeringCountdownValue = 60;
-      const answeringCountEl = document.getElementById('answeringCount');
-      if (answeringCountEl) answeringCountEl.textContent = answeringCountdownValue;
-      const answeringIndicator = document.getElementById('answeringTimerIndicator');
-      if (answeringIndicator) answeringIndicator.style.display = 'flex';
-
-      if (answeringCountdownInterval) clearInterval(answeringCountdownInterval);
-      answeringCountdownInterval = setInterval(() => {
-        answeringCountdownValue--;
-        if (answeringCountdownValue <= 0) {
-          clearInterval(answeringCountdownInterval);
-          answeringCountdownInterval = null;
-          if (answeringIndicator) answeringIndicator.style.display = 'none';
-          // Force submit answer
-          handleAutoSubmit(true);
-        } else {
-          if (answeringCountEl) answeringCountEl.textContent = answeringCountdownValue;
-        }
-      }, 1000);
-
-      // Reset the silence timer
-      if (silenceTimer) clearTimeout(silenceTimer);
-
-      // Start speech recognition (mic on) strictly after thinking timer ends
-      safeStartRecognition();
-    }
 
     function cleanTTSBleed(transcription, question) {
       if (!question || !transcription) return transcription;
@@ -347,6 +282,17 @@
         interimTranscription = cleanTTSBleed(interim, currentQuestionText);
         renderTranscriptBubbles();
 
+        if (isRecordingAnswer) {
+          // Reset silence timer on active speech
+          if (silenceTimer) clearTimeout(silenceTimer);
+          
+          const hasSpeech = (finalTranscription + interimTranscription).trim().length > 0;
+          const silenceDuration = hasSpeech ? 2500 : 10000;
+          
+          silenceTimer = setTimeout(() => {
+            handleAutoSubmit();
+          }, silenceDuration);
+        }
       };
 
       recognition.onerror = (event) => {
@@ -356,8 +302,8 @@
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           hasPermissionError = true;
         }
-        // Restart if it crashes or drops and we're supposed to be listening (and no permission error) during the answering phase
-        if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer && isAnsweringPhaseStarted) {
+        // Restart if it crashes or drops and we're supposed to be listening (and no permission error)
+        if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer) {
           setTimeout(() => {
             safeStartRecognition();
           }, 1000);
@@ -366,8 +312,8 @@
 
       recognition.onend = () => {
         isRecognitionRunning = false;
-        // Restart only if we're in the answering phase (and no permission error)
-        if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer && isAnsweringPhaseStarted) {
+        // Restart only if we're supposed to be listening (and no permission error)
+        if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer) {
           safeStartRecognition();
         }
       };
@@ -381,7 +327,7 @@
       isAIActive = true;
       isRecordingAnswer = false;  // block processing
       currentQuestionText = text;  // Store current question text for bleed cleanup
-      // DO NOT stop recognition — mic stays always on to prevent startup delays
+      safeStopRecognition();
       updateIndicatorUI();
 
       if (!('speechSynthesis' in window)) {
@@ -457,39 +403,19 @@
       isRecordingAnswer = true;
       updateIndicatorUI();
       
-      isAnsweringPhaseStarted = false;
-      
-      // Start the visual thinking countdown timer
-      thinkingCountdownValue = 10;
-      const thinkingCountEl = document.getElementById('thinkingCount');
-      if (thinkingCountEl) thinkingCountEl.textContent = thinkingCountdownValue;
-      const thinkingIndicator = document.getElementById('thinkingTimerIndicator');
-      if (thinkingIndicator) thinkingIndicator.style.display = 'flex';
-      
-      if (thinkingCountdownInterval) clearInterval(thinkingCountdownInterval);
-      thinkingCountdownInterval = setInterval(() => {
-        thinkingCountdownValue--;
-        if (thinkingCountdownValue <= 0) {
-          clearInterval(thinkingCountdownInterval);
-          thinkingCountdownInterval = null;
-          if (thinkingIndicator) thinkingIndicator.style.display = 'none';
-          // Transition to answering phase
-          startAnsweringPhase();
-        } else {
-          if (thinkingCountEl) thinkingCountEl.textContent = thinkingCountdownValue;
-        }
-      }, 1000);
-
-      // Start/seed the initial silence timer (10 seconds of thinking time to start speaking)
+      // Start/seed the initial silence timer (10 seconds to start speaking)
       if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        handleAutoSubmit();
+      }, 10000);
+
+      safeStartRecognition();
     }
 
     function updateIndicatorUI() {
       if (isAIActive) {
         aiSpeakingIndicator.style.display = 'flex';
         candidateListeningIndicator.style.display = 'none';
-        clearThinkingTimer();
-        clearAnsweringTimer();
         
         speakingText.textContent = adminMode ? "Admin is speaking..." : "AI is speaking...";
         interviewerStateLabel.textContent = adminMode ? "Admin Speaking" : "AI Speaking";
@@ -512,8 +438,6 @@
       } else {
         aiSpeakingIndicator.style.display = 'none';
         candidateListeningIndicator.style.display = 'none';
-        clearThinkingTimer();
-        clearAnsweringTimer();
         
         interviewerStateLabel.textContent = "Standby";
         aiAvatarRing.classList.remove('active-speaking', 'animate-pulse-ring');
@@ -567,10 +491,7 @@
       }
 
       if (silenceTimer) clearTimeout(silenceTimer);
-      clearThinkingTimer();
-      clearAnsweringTimer();
-      
-      // DO NOT stop recognition — mic stays always on to prevent startup delays
+      safeStopRecognition();
       
       manualInput.value = "";
       isRecordingAnswer = false;
@@ -737,7 +658,7 @@
         toggleMicBtn.className = `control-btn ${!micOn ? 'danger' : ''}`;
         if (!micOn) {
           safeStopRecognition();
-        } else if (micOn && isRecordingAnswer && isAnsweringPhaseStarted) {
+        } else if (micOn && isRecordingAnswer) {
           safeStartRecognition();
         }
       }
@@ -904,10 +825,9 @@
     manualInput.addEventListener('input', () => {
       renderTranscriptBubbles();
       
-      // Reset silence and thinking countdown timer on typing
+      // Reset silence timer on typing and stop speech recognition
       if (silenceTimer) clearTimeout(silenceTimer);
-      clearThinkingTimer();
-      clearAnsweringTimer();
+      safeStopRecognition();
       
       if (isRecordingAnswer) {
         silenceTimer = setTimeout(() => {
