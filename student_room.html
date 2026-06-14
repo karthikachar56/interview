@@ -285,18 +285,21 @@
       utterance.onend   = () => activate();
       utterance.onerror = () => activate();
 
-      // Speak — no delay
-      window.speechSynthesis.speak(utterance);
+      // --- PRIMARY TRIGGER: onboundary rolling timer ---
+      // onboundary fires for every word — NOT affected by Chrome GC (fires repeatedly so Chrome can't kill it).
+      // After each word we reset a 400ms timer. When the last word fires, the timer runs to completion
+      // and activates the mic within 400ms of speech ending — guaranteed.
+      let boundaryTimer = null;
+      utterance.onboundary = () => {
+        if (boundaryTimer) clearTimeout(boundaryTimer);
+        boundaryTimer = setTimeout(() => activate(), 400);
+      };
 
-      // --- PRIMARY TRIGGER: character-count timer ---
-      // Chrome TTS at rate=1.0 speaks ~60ms per character.
-      // This fires ~500ms after speech should end — reliable regardless of Chrome bugs.
-      const speechDurationMs = Math.max(1500, text.length * 60);
-      setTimeout(() => activate(), speechDurationMs + 500);
+      // --- FAST PATH: native onend (works reliably on Q1, sometimes Q2+) ---
+      // Already set above — no change needed.
 
-      // --- BONUS FAST PATH: speaking poll ---
-      // If Chrome correctly reports speaking state, this fires instantly when speech stops.
-      // Starts after 400ms so we don't falsely trigger during the brief gap between cancel() and speak().
+      // --- SAFETY NET: speaking poll starts 400ms after speak() ---
+      // Catches cases where onboundary never fires (very short text / no word events).
       let pollId;
       setTimeout(() => {
         if (done) return;
@@ -308,6 +311,14 @@
           if (wasSpeaking && !sp) activate();
         }, 100);
       }, 400);
+
+      // --- ABSOLUTE FALLBACK: character-count timer ---
+      // Chrome TTS at rate=1.0 ≈ 71ms per character. Fires ~500ms after speech should end.
+      const speechDurationMs = Math.max(2000, text.length * 71);
+      setTimeout(() => activate(), speechDurationMs + 500);
+
+      // Speak
+      window.speechSynthesis.speak(utterance);
     }
 
     function startListening() {
