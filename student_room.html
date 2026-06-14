@@ -259,9 +259,11 @@
         utterance.pitch = 1.0;
 
         let hasEnded = false;
+        let chromeBugFix;
         const triggerEnd = () => {
           if (hasEnded) return;
           hasEnded = true;
+          if (chromeBugFix) clearInterval(chromeBugFix);
           isAIActive = false;
           updateIndicatorUI();
           if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
@@ -277,9 +279,18 @@
           triggerEnd();
         };
 
-        // Fallback timer to guarantee the mic starts even if Chrome drops the onend event
-        // Approx 1 second per 2.5 words, plus 2 seconds buffer
-        const fallbackMs = (text.split(' ').length / 2.5) * 1000 + 2000;
+        // Workaround for Chrome's 15-second TTS bug that causes onend to drop
+        chromeBugFix = setInterval(() => {
+          if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          } else {
+            clearInterval(chromeBugFix);
+          }
+        }, 10000);
+
+        // Ultimate fallback timer to guarantee the mic starts 
+        const fallbackMs = Math.min((text.split(' ').length / 2.5) * 1000 + 4000, 45000);
         setTimeout(triggerEnd, fallbackMs);
 
         currentUtterance = utterance;
