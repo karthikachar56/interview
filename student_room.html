@@ -262,23 +262,29 @@
 
     function safeStartRecognition() {
       if (hasPermissionError) return;
-      if (recognition && !isRecognitionRunning && micOn && !isEnding) {
+      if (recognition && micOn && !isEnding) {
         try {
           recognition.start();
           isRecognitionRunning = true;
         } catch(e) {
-          console.warn("safeStartRecognition error:", e);
+          // If already started, mark as running and bypass the error
+          if (e.name === 'InvalidStateError' || (e.message && e.message.includes('already started'))) {
+            isRecognitionRunning = true;
+          } else {
+            console.warn("safeStartRecognition error:", e);
+          }
         }
       }
     }
 
     function safeStopRecognition() {
-      if (recognition && isRecognitionRunning) {
+      if (recognition) {
         try {
           recognition.stop();
         } catch(e) {
           console.warn("safeStopRecognition error:", e);
         }
+        isRecognitionRunning = false;
       }
     }
 
@@ -387,12 +393,13 @@
       let boundaryTimer = null;
       let fallbackTimer = null;
 
-      const activate = () => {
+      const activate = (force = false) => {
         if (done) return;
         
         // If TTS is still actively speaking or queued, check again in 200ms
-        if (window.speechSynthesis.speaking) {
-          setTimeout(() => activate(), 200);
+        // Bypass this check if the fallback timer forces the transition (to recover from Chrome speech hangs)
+        if (!force && window.speechSynthesis.speaking) {
+          setTimeout(() => activate(false), 200);
           return;
         }
         
@@ -410,18 +417,18 @@
       };
 
       // Layer 1: onend (instant when Chrome cooperates)
-      utterance.onend   = () => activate();
-      utterance.onerror = () => activate();
+      utterance.onend   = () => activate(false);
+      utterance.onerror = () => activate(false);
 
       // Layer 2: onboundary rolling timer (immune to GC — fires per word)
       utterance.onboundary = () => {
         if (boundaryTimer) clearTimeout(boundaryTimer);
-        boundaryTimer = setTimeout(() => activate(), 350);
+        boundaryTimer = setTimeout(() => activate(false), 350);
       };
 
-      // Layer 3: char-count timer — primary reliable fallback (runs immediately)
+      // Layer 3: char-count timer — primary reliable fallback (forces transition if Chrome hangs)
       const speechMs = Math.max(1500, text.length * 65);
-      fallbackTimer = setTimeout(() => activate(), speechMs + 300);
+      fallbackTimer = setTimeout(() => activate(true), speechMs + 500);
 
       window.speechSynthesis.speak(utterance);
     }

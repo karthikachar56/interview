@@ -85,7 +85,9 @@ function cleanupClient(ws) {
   }
 }
 
-const compileTempDir = path.join(__dirname, '..', 'tmp', 'compile');
+const compileTempDir = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'compile')
+  : path.join(__dirname, '..', 'tmp', 'compile');
 
 function formatResult(stdout, stderr) {
   const output = `${stdout || ''}${stderr || ''}`.trim();
@@ -165,7 +167,9 @@ const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+s
 const DB_NAME = 'ai_interview';
 const fallbackPath = path.join(__dirname, '..', 'db', 'fallback-entrances.json');
 const sessionsFallbackPath = path.join(__dirname, '..', 'db', 'fallback-sessions.json');
-const previewsDir = path.join(__dirname, '..', 'db', 'previews');
+const previewsDir = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'previews')
+  : path.join(__dirname, '..', 'db', 'previews');
 let dbClient = null;
 let mongoUnavailable = false;
 let backupEntrances = [];
