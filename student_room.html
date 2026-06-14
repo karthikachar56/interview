@@ -248,59 +248,68 @@
       updateIndicatorUI();
 
       if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech before starting new one
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        // Try to find a standard US English voice
-        const voices = window.speechSynthesis.getVoices();
-        const usVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) || voices.find(v => v.lang === 'en-US');
-        if (usVoice) utterance.voice = usVoice;
-        
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
 
-        let hasEnded = false;
-        let checkSpeakingInterval;
+        // Small delay to ensure cancel() fully takes effect in Chrome
+        setTimeout(() => {
+          const utterance = new SpeechSynthesisUtterance(text);
 
-        const triggerEnd = () => {
-          if (hasEnded) return;
-          hasEnded = true;
-          if (checkSpeakingInterval) clearInterval(checkSpeakingInterval);
-          isAIActive = false;
-          updateIndicatorUI();
-          if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
-            endInterview();
-          } else {
-            startListening();
-          }
-        };
+          // Try to find a standard US English voice
+          const voices = window.speechSynthesis.getVoices();
+          const usVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) || voices.find(v => v.lang === 'en-US');
+          if (usVoice) utterance.voice = usVoice;
 
-        utterance.onend = triggerEnd;
-        utterance.onerror = (err) => {
-          console.error("TTS speech synthesis error:", err);
-          triggerEnd();
-        };
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
 
-        // Strict GC fix to prevent Chrome from dropping onend after 2nd/3rd question
-        window.utterances = window.utterances || [];
-        window.utterances.push(utterance);
+          let hasEnded = false;
+          let pollInterval;
 
-        let hasStarted = false;
-        utterance.onstart = () => { hasStarted = true; };
+          const triggerEnd = () => {
+            if (hasEnded) return;
+            hasEnded = true;
+            if (pollInterval) clearInterval(pollInterval);
+            isAIActive = false;
+            updateIndicatorUI();
+            if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
+              endInterview();
+            } else {
+              startListening();
+            }
+          };
 
-        // Highly accurate polling to turn mic on instantly when speech stops, bypassing broken onend events
-        checkSpeakingInterval = setInterval(() => {
-          if (hasStarted && !window.speechSynthesis.speaking && !hasEnded) {
-            triggerEnd();
-          }
-        }, 200);
+          utterance.onend = triggerEnd;
+          utterance.onerror = () => triggerEnd();
 
-        // Ultimate fallback timer
-        const fallbackMs = Math.min((text.split(' ').length / 2.5) * 1000 + 4000, 45000);
-        setTimeout(triggerEnd, fallbackMs);
+          // GC fix: keep utterance reference alive in global array
+          window._activeUtterances = window._activeUtterances || [];
+          window._activeUtterances.push(utterance);
+          // Prevent memory leak: keep at most 5 utterances
+          if (window._activeUtterances.length > 5) window._activeUtterances.shift();
 
-        currentUtterance = utterance;
-        window.speechSynthesis.speak(utterance);
+          // Store reference
+          currentUtterance = utterance;
+          window.speechSynthesis.speak(utterance);
+
+          // Poll-based safety net: start polling after 800ms
+          // (gives TTS time to actually start before checking if it stopped)
+          // This handles Chrome dropping onend silently
+          setTimeout(() => {
+            if (hasEnded) return;
+            pollInterval = setInterval(() => {
+              if (!window.speechSynthesis.speaking && !hasEnded) {
+                triggerEnd();
+              }
+            }, 300);
+          }, 800);
+
+          // Ultimate fallback timer based on word count
+          const fallbackMs = Math.min((text.split(' ').length / 2.5) * 1000 + 5000, 50000);
+          setTimeout(triggerEnd, fallbackMs);
+
+        }, 150); // 150ms ensures Chrome cancel() is fully applied
+
       } else {
         // Fallback without TTS
         isAIActive = false;
