@@ -178,7 +178,28 @@
 
     // Speech Recognition Setup
     let recognition = null;
-    let maxIgnoreIndex = -1;
+    let isRecognitionRunning = false;
+
+    function safeStartRecognition() {
+      if (recognition && !isRecognitionRunning && micOn && !isEnding) {
+        try {
+          recognition.start();
+          isRecognitionRunning = true;
+        } catch(e) {
+          console.warn("safeStartRecognition error:", e);
+        }
+      }
+    }
+
+    function safeStopRecognition() {
+      if (recognition && isRecognitionRunning) {
+        try {
+          recognition.stop();
+        } catch(e) {
+          console.warn("safeStopRecognition error:", e);
+        }
+      }
+    }
 
     function initSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -192,21 +213,16 @@
       recognition.lang = 'en-US';
 
       recognition.onstart = () => {
-        maxIgnoreIndex = -1;
+        isRecognitionRunning = true;
       };
 
       recognition.onresult = (event) => {
-        // Ignore everything while AI is speaking — prevents TTS bleed into transcript
-        if (isAIActive) {
-          maxIgnoreIndex = event.results.length - 1;
-          return;
-        }
+        // Ignore everything while AI is speaking
+        if (isAIActive) return;
 
         let interim = '';
         let final = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (i <= maxIgnoreIndex) continue;
-
           if (event.results[i].isFinal) {
             final += event.results[i][0].transcript + ' ';
           } else {
@@ -237,22 +253,20 @@
           console.error("Speech Recognition error:", event.error);
         }
         // Restart if it crashes or drops and we're supposed to be listening
-        if (isRecordingAnswer) {
+        if (isRecordingAnswer && !isAIActive && !isEnding && micOn) {
           setTimeout(() => {
-            try { recognition.start(); } catch(e){}
+            safeStartRecognition();
           }, 1000);
         }
       };
 
       recognition.onend = () => {
-        // Always restart — mic is ALWAYS on during the interview
-        if (!isEnding) {
-          try { recognition.start(); } catch(e){}
+        isRecognitionRunning = false;
+        // Only restart if we are in the listening phase, not when AI is active
+        if (isRecordingAnswer && !isAIActive && !isEnding && micOn) {
+          safeStartRecognition();
         }
       };
-
-      // Start immediately — mic is always on
-      try { recognition.start(); } catch(e){}
     }
 
     // Speech Synthesis
@@ -261,8 +275,8 @@
 
     function speakAndListen(text) {
       isAIActive = true;
-      isRecordingAnswer = false;  // block processing — mic is still ON but we won't submit
-      // DO NOT stop recognition — mic stays always on
+      isRecordingAnswer = false;  // block processing
+      safeStopRecognition();      // Stop the mic while AI speaks
       updateIndicatorUI();
 
       if (!('speechSynthesis' in window)) {
@@ -331,16 +345,12 @@
 
     function startListening() {
       if (!micOn) return;
-      // Wipe any TTS bleed captured while AI was speaking
       finalTranscription = '';
       interimTranscription = '';
       manualInput.value = '';
       isRecordingAnswer = true;
       updateIndicatorUI();
-      // Mic is already running (continuous mode) — just ensure it's started
-      if (recognition) {
-        try { recognition.start(); } catch(e){ /* already running — that's fine */ }
-      }
+      safeStartRecognition(); // Start/unmute mic now that AI finished
     }
 
     function updateIndicatorUI() {
@@ -420,7 +430,7 @@
       }
 
       if (silenceTimer) clearTimeout(silenceTimer);
-      // DO NOT stop recognition — mic stays always on
+      safeStopRecognition(); // Stop mic while AI generates/evaluates next question
       
       manualInput.value = "";
       isRecordingAnswer = false;
@@ -585,10 +595,10 @@
         tracks[0].enabled = micOn;
         toggleMicBtn.textContent = micOn ? '🎤 Mute' : '🔇 Unmute';
         toggleMicBtn.className = `control-btn ${!micOn ? 'danger' : ''}`;
-        if (!micOn && recognition) {
-          try { recognition.stop(); } catch(e){}
-        } else if (micOn && isRecordingAnswer && recognition) {
-          try { recognition.start(); } catch(e){}
+        if (!micOn) {
+          safeStopRecognition();
+        } else if (micOn && isRecordingAnswer) {
+          safeStartRecognition();
         }
       }
     });
@@ -723,9 +733,7 @@
       questionText.textContent = "Generating your scorecard...";
       interviewerStateLabel.textContent = "Evaluating...";
       
-      if (recognition) {
-        try { recognition.stop(); } catch(e){}
-      }
+      safeStopRecognition();
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       
       // Stop media tracks
