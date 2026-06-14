@@ -317,17 +317,25 @@ Respond ONLY with a valid JSON object in this exact format:
   "answerScore": <0-10>
 }`;
 
+  let metrics;
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash-8b',
-      contents: prompt,
-    });
-    const raw = (response.text || '').trim();
-    const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-    const parsed = JSON.parse(jsonStr);
+    let parsed = {};
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash-8b',
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
+      });
+      const raw = response.text || '';
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+    } catch (aiErr) {
+      console.error("evaluateRealTimeMetrics AI/Parse error:", aiErr);
+      parsed = { confidence: 6, vocabulary: 6, answering: 6, nervousness: 6, faceExpression: 6, questionUnderstand: 6, answerScore: 6 };
+    }
 
     const getMetric = (val) => (val === undefined || val === null || isNaN(Number(val))) ? 5 : Number(val);
-    const metrics = {
+    metrics = {
       confidence: Math.min(10, Math.max(0, getMetric(parsed.confidence))),
       vocabulary: Math.min(10, Math.max(0, getMetric(parsed.vocabulary))),
       answering: Math.min(10, Math.max(0, getMetric(parsed.answering))),
