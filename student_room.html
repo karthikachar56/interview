@@ -36,7 +36,7 @@
         </div>
         <div id="candidateListeningIndicator" style="margin-top: auto; padding-top: 1rem; display: none; align-items: center; gap: 0.5rem; color: var(--accent-primary); font-size: 0.875rem;">
           <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-primary); border-radius: 50%; animation: pulse-bg 1s infinite;"></span>
-          Listening to your answer... (Auto-submits after pause)
+          Listening to your answer... (Auto-submits when timer ends)
         </div>
         <div id="thinkingTimerIndicator" style="margin-top: 0.5rem; display: none; align-items: center; gap: 0.5rem; color: var(--accent-secondary); font-size: 0.875rem;">
           <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-secondary); border-radius: 50%; animation: pulse-bg 1.5s infinite;"></span>
@@ -243,12 +243,6 @@
 
       // Reset the silence timer
       if (silenceTimer) clearTimeout(silenceTimer);
-      const hasSpeech = (finalTranscription + interimTranscription).trim().length > 0;
-      if (hasSpeech) {
-        silenceTimer = setTimeout(() => {
-          handleAutoSubmit();
-        }, 2500);
-      }
 
       // Start speech recognition (mic on) strictly after thinking timer ends
       safeStartRecognition();
@@ -353,17 +347,6 @@
         interimTranscription = cleanTTSBleed(interim, currentQuestionText);
         renderTranscriptBubbles();
 
-        if (isRecordingAnswer && isAnsweringPhaseStarted) {
-          // Reset silence timer on active speech during the answering phase
-          if (silenceTimer) clearTimeout(silenceTimer);
-          
-          const hasSpeech = (finalTranscription + interimTranscription).trim().length > 0;
-          if (hasSpeech) {
-            silenceTimer = setTimeout(() => {
-              handleAutoSubmit();
-            }, 2500);
-          }
-        }
       };
 
       recognition.onerror = (event) => {
