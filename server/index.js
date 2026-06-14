@@ -746,34 +746,16 @@ async function startServer() {
 
       const aiMessageCount = history.filter(msg => msg.role === 'ai' || msg.role === 'admin').length;
 
-      // Extract latest student answer
+      // Extract latest student answer and synchronously calculate metrics to prevent Vercel from killing the background task
       const studentMsg = history.slice().reverse().find(m => m.role === 'student');
       const aiMsg = history.slice().reverse().find(m => m.role === 'ai' || m.role === 'admin');
       let currentMetrics = null;
-
       if (studentMsg) {
-        // AI correction: fix garbled speech-to-text before scoring
-        let cleanedAnswer = studentMsg.text;
-        if (process.env.GEMINI_API_KEY && studentMsg.text.trim().length > 2) {
-          try {
-            const corrResp = await ai.models.generateContent({
-              model: 'gemini-1.5-flash-8b',
-              contents: `You are a speech recognition corrector. Fix any obvious errors in this interview answer.
-Question: "${aiMsg ? aiMsg.text : 'interview question'}"
-Raw speech-to-text: "${studentMsg.text}"
-Return ONLY the corrected text with no explanation.`
-            });
-            const corrected = (corrResp.text || '').trim();
-            if (corrected.length > 0) cleanedAnswer = corrected;
-          } catch (e) { /* use raw on failure */ }
-        }
-        studentMsg.text = cleanedAnswer;
-
         try {
-          const questionText = aiMsg ? aiMsg.text : 'Unknown question';
-          currentMetrics = await evaluateRealTimeMetrics(sessionId, cleanedAnswer, questionText);
+          const questionText = aiMsg ? aiMsg.text : "Unknown question";
+          currentMetrics = await evaluateRealTimeMetrics(sessionId, studentMsg.text, questionText);
         } catch (err) {
-          console.error('Metrics evaluation error', err);
+          console.error("Metrics evaluation error", err);
         }
       }
 

@@ -188,7 +188,6 @@
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
-      recognition.maxAlternatives = 3; // capture multiple alternatives for better accuracy
 
       recognition.onresult = (event) => {
         // Ignore everything while AI is speaking — prevents TTS bleed into transcript
@@ -198,12 +197,7 @@
         let final = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            // Pick the highest-confidence alternative
-            let best = event.results[i][0];
-            for (let a = 1; a < event.results[i].length; a++) {
-              if (event.results[i][a].confidence > best.confidence) best = event.results[i][a];
-            }
-            final += best.transcript + ' ';
+            final += event.results[i][0].transcript + ' ';
           } else {
             interim += event.results[i][0].transcript;
           }
@@ -220,10 +214,10 @@
         if (silenceTimer) clearTimeout(silenceTimer);
         
         if (isRecordingAnswer) {
-          // 4 seconds of silence triggers auto-submit (more responsive than 7s)
+          // 7 seconds of silence triggers auto-submit
           silenceTimer = setTimeout(() => {
             handleAutoSubmit();
-          }, 4000);
+          }, 7000);
         }
       };
 
@@ -435,41 +429,6 @@
           });
           const data = await res.json();
           if (data.metrics) {
-            // Extract latest student answer
-            const studentMsg = transcript.slice().reverse().find(m => m.role === 'student');
-            const aiMsg = transcript.slice().reverse().find(m => m.role === 'ai' || m.role === 'admin');
-            let currentMetrics = null;
-
-            if (studentMsg) {
-              // AI correction: clean up garbled speech recognition text
-              let cleanedAnswer = studentMsg.text;
-              if (process.env.GEMINI_API_KEY && studentMsg.text.trim().length > 2) {
-                try {
-                  const correctionPrompt = `The following text was captured by a speech recognition system and may have errors, missing words, or wrong words. The candidate was answering this interview question: "${aiMsg ? aiMsg.text : 'interview question'}"
-
-Raw speech recognition text: "${studentMsg.text}"
-
-Please correct and improve the transcription. Keep the meaning exactly the same — only fix obvious speech recognition errors. Return ONLY the corrected text, nothing else.`;
-                  const corrResp = await ai.models.generateContent({
-                    model: 'gemini-1.5-flash-8b',
-                    contents: correctionPrompt
-                  });
-                  const corrected = (corrResp.text || '').trim();
-                  if (corrected && corrected.length > 0) cleanedAnswer = corrected;
-                } catch (corrErr) {
-                  console.error('Answer correction failed, using raw:', corrErr.message);
-                }
-              }
-              // Update the history entry with the corrected answer
-              studentMsg.text = cleanedAnswer;
-
-              try {
-                const questionText = aiMsg ? aiMsg.text : "Unknown question";
-                currentMetrics = await evaluateRealTimeMetrics(sessionId, cleanedAnswer, questionText);
-              } catch (err) {
-                console.error("Metrics evaluation error", err);
-              }
-            }
             clientVallyMetricsHistory.push(data.metrics);
           }
           questionText.textContent = data.question;
