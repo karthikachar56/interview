@@ -258,7 +258,10 @@
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
 
-        utterance.onend = () => {
+        let hasEnded = false;
+        const triggerEnd = () => {
+          if (hasEnded) return;
+          hasEnded = true;
           isAIActive = false;
           updateIndicatorUI();
           if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
@@ -268,16 +271,16 @@
           }
         };
 
+        utterance.onend = triggerEnd;
         utterance.onerror = (err) => {
           console.error("TTS speech synthesis error:", err);
-          isAIActive = false;
-          updateIndicatorUI();
-          if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
-            endInterview();
-          } else {
-            startListening();
-          }
+          triggerEnd();
         };
+
+        // Fallback timer to guarantee the mic starts even if Chrome drops the onend event
+        // Approx 1 second per 2.5 words, plus 2 seconds buffer
+        const fallbackMs = (text.split(' ').length / 2.5) * 1000 + 2000;
+        setTimeout(triggerEnd, fallbackMs);
 
         currentUtterance = utterance;
         window.speechSynthesis.speak(utterance);
