@@ -36,7 +36,11 @@
         </div>
         <div id="candidateListeningIndicator" style="margin-top: auto; padding-top: 1rem; display: none; align-items: center; gap: 0.5rem; color: var(--accent-primary); font-size: 0.875rem;">
           <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-primary); border-radius: 50%; animation: pulse-bg 1s infinite;"></span>
-          Listening to your answer... (Auto-submits after pause)
+          Listening to your answer... (Auto-submits when timer ends)
+        </div>
+        <div id="answeringTimerIndicator" style="margin-top: 0.5rem; display: none; align-items: center; gap: 0.5rem; color: var(--accent-primary); font-size: 0.875rem;">
+          <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent-primary); border-radius: 50%; animation: pulse-bg 1s infinite;"></span>
+          ⏱️ Answering time remaining: <strong id="answeringCount" style="color: var(--accent-danger); font-size: 1rem; margin-left: 0.25rem; margin-right: 0.25rem;">90</strong> seconds
         </div>
       </div>
 
@@ -181,6 +185,44 @@
     let isRecognitionRunning = false;
     let hasPermissionError = false;
     let currentQuestionText = "";
+
+    let answeringCountdownInterval = null;
+    let answeringCountdownValue = 90;
+
+    function clearAnsweringTimer() {
+      if (answeringCountdownInterval) {
+        clearInterval(answeringCountdownInterval);
+        answeringCountdownInterval = null;
+      }
+      const ansIndicator = document.getElementById('answeringTimerIndicator');
+      if (ansIndicator) ansIndicator.style.display = 'none';
+      safeStopRecognition();
+    }
+
+    function startAnsweringPhase() {
+      answeringCountdownValue = 90;
+      const answeringCountEl = document.getElementById('answeringCount');
+      if (answeringCountEl) answeringCountEl.textContent = answeringCountdownValue;
+      const answeringIndicator = document.getElementById('answeringTimerIndicator');
+      if (answeringIndicator) answeringIndicator.style.display = 'flex';
+
+      if (answeringCountdownInterval) clearInterval(answeringCountdownInterval);
+      answeringCountdownInterval = setInterval(() => {
+        answeringCountdownValue--;
+        if (answeringCountdownValue <= 0) {
+          clearInterval(answeringCountdownInterval);
+          answeringCountdownInterval = null;
+          if (answeringIndicator) answeringIndicator.style.display = 'none';
+          // Force submit answer
+          handleAutoSubmit(true);
+        } else {
+          if (answeringCountEl) answeringCountEl.textContent = answeringCountdownValue;
+        }
+      }, 1000);
+
+      // Start speech recognition immediately
+      safeStartRecognition();
+    }
 
 
     function cleanTTSBleed(transcription, question) {
@@ -403,19 +445,16 @@
       isRecordingAnswer = true;
       updateIndicatorUI();
       
-      // Start/seed the initial silence timer (10 seconds to start speaking)
       if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        handleAutoSubmit();
-      }, 10000);
 
-      safeStartRecognition();
+      startAnsweringPhase();
     }
 
     function updateIndicatorUI() {
       if (isAIActive) {
         aiSpeakingIndicator.style.display = 'flex';
         candidateListeningIndicator.style.display = 'none';
+        clearAnsweringTimer();
         
         speakingText.textContent = adminMode ? "Admin is speaking..." : "AI is speaking...";
         interviewerStateLabel.textContent = adminMode ? "Admin Speaking" : "AI Speaking";
@@ -438,6 +477,7 @@
       } else {
         aiSpeakingIndicator.style.display = 'none';
         candidateListeningIndicator.style.display = 'none';
+        clearAnsweringTimer();
         
         interviewerStateLabel.textContent = "Standby";
         aiAvatarRing.classList.remove('active-speaking', 'animate-pulse-ring');
@@ -491,7 +531,7 @@
       }
 
       if (silenceTimer) clearTimeout(silenceTimer);
-      safeStopRecognition();
+      clearAnsweringTimer();
       
       manualInput.value = "";
       isRecordingAnswer = false;
@@ -825,9 +865,9 @@
     manualInput.addEventListener('input', () => {
       renderTranscriptBubbles();
       
-      // Reset silence timer on typing and stop speech recognition
+      // Reset silence timer on typing and clear answering timer
       if (silenceTimer) clearTimeout(silenceTimer);
-      safeStopRecognition();
+      clearAnsweringTimer();
       
       if (isRecordingAnswer) {
         silenceTimer = setTimeout(() => {
