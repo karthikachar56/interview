@@ -196,7 +196,6 @@
       }
       const ansIndicator = document.getElementById('answeringTimerIndicator');
       if (ansIndicator) ansIndicator.style.display = 'none';
-      safeStopRecognition();
     }
 
     function startAnsweringPhase() {
@@ -350,8 +349,8 @@
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           hasPermissionError = true;
         }
-        // Restart if it crashes or drops and we're supposed to be listening (and no permission error)
-        if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer) {
+        // Restart if it crashes or drops (and no permission error)
+        if (!isEnding && micOn && !hasPermissionError) {
           setTimeout(() => {
             safeStartRecognition();
           }, 1000);
@@ -360,11 +359,14 @@
 
       recognition.onend = () => {
         isRecognitionRunning = false;
-        // Restart only if we're supposed to be listening (and no permission error)
-        if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer) {
+        // Restart mic continuously to keep it warm
+        if (!isEnding && micOn && !hasPermissionError) {
           safeStartRecognition();
         }
       };
+
+      // Start immediately — mic is always on
+      try { recognition.start(); } catch(e){}
     }
 
     // Speech Synthesis
@@ -375,7 +377,7 @@
       isAIActive = true;
       isRecordingAnswer = false;  // block processing
       currentQuestionText = text;  // Store current question text for bleed cleanup
-      safeStopRecognition();
+      // DO NOT stop recognition — mic stays always on to prevent startup delays
       updateIndicatorUI();
 
       if (!('speechSynthesis' in window)) {
