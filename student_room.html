@@ -349,24 +349,16 @@
         interimTranscription = cleanTTSBleed(interim, currentQuestionText);
         renderTranscriptBubbles();
 
-        // Reset silence timer on active speech
-        if (silenceTimer) clearTimeout(silenceTimer);
-        
-        if (isRecordingAnswer) {
+        if (isRecordingAnswer && isAnsweringPhaseStarted) {
+          // Reset silence timer on active speech during the answering phase
+          if (silenceTimer) clearTimeout(silenceTimer);
+          
           const hasSpeech = (finalTranscription + interimTranscription).trim().length > 0;
-          
           if (hasSpeech) {
-            startAnsweringPhase();
+            silenceTimer = setTimeout(() => {
+              handleAutoSubmit();
+            }, 2500);
           }
-          
-          // Assistive Conversational Pause Detection:
-          // If the candidate has already started speaking, wait 2.5 seconds of silence before auto-submitting.
-          // If they haven't started speaking yet, give them 10 seconds to think.
-          const silenceDuration = hasSpeech ? 2500 : 10000;
-          
-          silenceTimer = setTimeout(() => {
-            handleAutoSubmit();
-          }, silenceDuration);
         }
       };
 
