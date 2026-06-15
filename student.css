@@ -3,8 +3,8 @@
 :root {
   --bg-color: #ffffff;
   --bg-gradient: radial-gradient(circle at 50% -20%, #f5f3ff 0%, #ffffff 80%);
-  --text-primary: #0f172a; /* Slate 900 */
-  --text-secondary: #475569; /* Slate 600 */
+  --text-primary: #000000; /* Pure Black */
+  --text-secondary: #000000; /* Pure Black */
   
   --accent-primary: #8b5cf6; /* Violet 500 */
   --accent-secondary: #0d9488; /* Teal 600 */
