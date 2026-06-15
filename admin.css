@@ -9,7 +9,7 @@
 
 .admin-sidebar {
   width: 250px;
-  background: rgba(255, 255, 255, 0.02);
+  background: #f8fafc;
   border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
@@ -45,13 +45,13 @@
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.04);
   color: var(--text-primary);
 }
 
 .nav-link.active {
-  background: rgba(139, 92, 246, 0.15); /* var(--accent-primary) with opacity */
-  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.08); /* var(--accent-primary) with opacity */
+  color: var(--accent-primary);
   border-left: 3px solid var(--accent-primary);
 }
 
@@ -84,7 +84,7 @@
 }
 
 .dashboard-table tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(15, 23, 42, 0.02);
 }
 
 .status-badge {
@@ -95,12 +95,12 @@
   display: inline-block;
 }
 
-.status-active { background: rgba(20, 184, 166, 0.2); color: #5eead4; }
-.status-paused { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
-.status-waiting { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
-.status-escalated { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
-.status-completed { background: rgba(20, 184, 166, 0.2); color: #5eead4; }
-.status-in_progress { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
+.status-active { background: rgba(20, 184, 166, 0.15); color: #0f766e; }
+.status-paused { background: rgba(245, 158, 11, 0.15); color: #b45309; }
+.status-waiting { background: rgba(139, 92, 246, 0.15); color: #6d28d9; }
+.status-escalated { background: rgba(239, 68, 68, 0.15); color: #b91c1c; }
+.status-completed { background: rgba(20, 184, 166, 0.15); color: #0f766e; }
+.status-in_progress { background: rgba(139, 92, 246, 0.15); color: #6d28d9; }
 
 /* Multi-pane Layout */
 .session-layout {
@@ -278,7 +278,7 @@
   display: flex;
   justify-content: space-between;
   padding: 0.5rem 0;
-  border-bottom: 1px dashed rgba(255,255,255,0.1);
+  border-bottom: 1px dashed rgba(15, 23, 42, 0.1);
   font-size: 0.85rem;
 }
 
@@ -296,7 +296,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, rgba(0,0,0,0.5) 70%);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, #f8fafc 100%);
   border-radius: 0.5rem;
   position: relative;
   overflow: hidden;

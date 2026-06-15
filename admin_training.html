@@ -39,23 +39,23 @@
       transition: all 0.2s ease;
     }
     .rating-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(15, 23, 42, 0.04);
       border-color: var(--text-secondary);
     }
     .rating-btn.active-good {
       border: 2px solid #10b981;
       background: rgba(16, 185, 129, 0.15);
-      color: #5eead4;
+      color: #047857;
     }
     .rating-btn.active-bad {
       border: 2px solid #ef4444;
       background: rgba(239, 68, 68, 0.15);
-      color: #fca5a5;
+      color: #b91c1c;
     }
     .rating-btn.active-hard {
       border: 2px solid #f59e0b;
       background: rgba(245, 158, 11, 0.15);
-      color: #fde047;
+      color: #b45309;
     }
   </style>
 </head>
@@ -89,7 +89,7 @@
       </nav>
 
       <div style="padding: 1rem; border-top: 1px solid var(--glass-border); margin-top: auto;">
-        <button onclick="handleLogout()" style="width: 100%; padding: 0.625rem 1rem; border-radius: 0.5rem; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(239,68,68,0.15)'" onmouseleave="this.style.background='transparent'">
+        <button onclick="handleLogout()" style="width: 100%; padding: 0.625rem 1rem; border-radius: 0.5rem; background: transparent; border: 1px solid rgba(239,68,68,0.4); color: #ef4444; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(239,68,68,0.08)'" onmouseleave="this.style.background='transparent'">
           🚪 Logout
         </button>
       </div>
@@ -115,7 +115,7 @@
         <!-- Quick Thumbs Rating -->
         <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 2rem;">
           <h3 style="margin-bottom: 1rem; font-size: 1rem; color: var(--text-primary);">Quick Question Rating</h3>
-          <p style="font-style: italic; margin-bottom: 1.25rem; padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+          <p style="font-style: italic; margin-bottom: 1.25rem; padding: 1rem; background: rgba(139, 92, 246, 0.08); border: 1px solid var(--glass-border); border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">
             Rate the AI's most recent question quality for this candidate.
           </p>
           <div style="display: flex; gap: 1rem;">
@@ -147,7 +147,7 @@
             </label>
             <select
               id="issueType"
-              style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.4); color: white; outline: none; font-size: 0.9rem;"
+              style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: rgba(15, 23, 42, 0.04); color: var(--text-primary); outline: none; font-size: 0.9rem;"
             >
               <option value="missed_skill">Missed a key candidate skill</option>
               <option value="wrong_followup">Asked a wrong follow-up question</option>
@@ -167,7 +167,7 @@
               rows="4"
               placeholder="e.g. The candidate mentioned closures, so the AI should have given partial credit instead of 0."
               required
-              style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: white; resize: vertical; outline: none; font-size: 0.9rem; font-family: inherit; line-height: 1.5;"
+              style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: rgba(15, 23, 42, 0.04); color: var(--text-primary); resize: vertical; outline: none; font-size: 0.9rem; font-family: inherit; line-height: 1.5;"
             ></textarea>
           </div>
 
