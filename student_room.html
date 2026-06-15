@@ -849,17 +849,43 @@
       safeStopRecognition();
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       
-      // Stop media tracks
-      if (localStream) localStream.getTracks().forEach(t => t.stop());
-      if (screenStream) screenStream.getTracks().forEach(t => t.stop());
-      if (peer) peer.destroy();
+      // Stop media tracks safely
+      try {
+        if (localStream && typeof localStream.getTracks === 'function') {
+          localStream.getTracks().forEach(track => {
+            try { track.stop(); } catch(e){}
+          });
+        }
+      } catch (err) {
+        console.warn("Error stopping local stream tracks:", err);
+      }
 
       try {
-        await fetch('/api/interview/complete', {
+        if (screenStream && typeof screenStream.getTracks === 'function') {
+          screenStream.getTracks().forEach(track => {
+            try { track.stop(); } catch(e){}
+          });
+        }
+      } catch (err) {
+        console.warn("Error stopping screen stream tracks:", err);
+      }
+
+      try {
+        if (peer && typeof peer.destroy === 'function') {
+          peer.destroy();
+        }
+      } catch (err) {
+        console.warn("Error destroying peer:", err);
+      }
+
+      try {
+        // Fire-and-forget background fetch with keepalive to allow instant redirect
+        fetch('/api/interview/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, transcript: transcript, vallyMetricsHistory: clientVallyMetricsHistory })
-        });
+          body: JSON.stringify({ sessionId, transcript: transcript, vallyMetricsHistory: clientVallyMetricsHistory }),
+          keepalive: true
+        }).catch(err => console.error("Failed to log completion background fetch:", err));
       } catch (err) {
         console.error("Failed to log completion:", err);
       }
