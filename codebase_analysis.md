@@ -1,14 +1,14 @@
-# Codebase Analysis: AI Interview Application
+# Codebase Analysis: AI Mock Interview Application
 
-This document provides a thorough structural and architectural analysis of the AI Mock Interview application. The platform is designed to conduct automated and admin-supervised candidate interviews using web speech APIs, real-time WebSockets, PeerJS, and Gemini AI.
+This document provides a comprehensive structural, architectural, and mechanical analysis of the AI Mock Interview system. The platform combines web speech APIs, real-time WebSockets, WebRTC (PeerJS), and Google Gemini AI to deliver an automated, adaptive, and optionally supervised candidate assessment platform.
 
 ---
 
 ## 1. Architectural Overview
 
-The application is structured as a single-node Express backend serving static HTML pages and API routes, combined with a WebSocket server for real-time signaling.
+The application is built using a client-server architecture. It features a single-node Express backend serving static HTML frontends and handling REST/WebSocket channels, backed by a persistent MongoDB database (or local JSON file storage as a failover).
 
-### High-Level Architecture Diagram
+### Core Architecture & Communication Flow
 ```mermaid
 graph TD
     subgraph Client [Student / Candidate Client]
@@ -26,15 +26,15 @@ graph TD
         AT[admin_training.html]
     end
 
-    subgraph Backend [Express Server]
-        API[API Router / api/index.js]
+    subgraph Backend [Express Server / server/index.js]
+        API[API Router]
         WS[WebSocket Server]
         CO[Code Compiler Run-Job]
     end
 
     subgraph Data [Data Tier]
-        Mongo[(MongoDB)]
-        FS[(Fallback File System)]
+        Mongo[(MongoDB Atlas / Local)]
+        FS[(Local Fallback Files)]
     end
 
     subgraph AI [External Services]
@@ -55,70 +55,70 @@ graph TD
 
 ---
 
-## 2. File Directory Breakdown
+## 2. Directory Structure
 
 ```
 2 ai mock/
 ├── .dockerignore
-├── .env.local                  # Local environment settings (GEMINI_API_KEY, ADMIN_PASSWORD, etc.)
+├── .env.local                  # Environment credentials (API keys, ports, Mongo URI)
 ├── .gitignore
-├── Dockerfile                  # Container definition for App server
-├── docker-compose.yml          # Container configuration for MongoDB & App
-├── package.json                # Project dependencies (dotenv, express, mongodb, ws, @google/genai)
+├── Dockerfile                  # Containerization template for Node server
+├── docker-compose.yml          # Container stack for MongoDB service & application
+├── package.json                # Project dependencies (Express, MongoDB driver, WS, Gemini SDK)
 ├── package-lock.json
-├── index.html                  # Landing page (Features overview & entrance gates)
-├── admin.css                   # Stylesheet for the Admin interface
-├── student.css                 # Stylesheet for the Student interface
+├── index.html                  # Main landing portal and gateway selector
+├── admin.css                   # Admin dashboard stylesheets
+├── student.css                 # Student UI styling (glassmorphism tokens)
 │
 ├── server/
-│   └── index.js                # Core Express app, WebSocket handlers, and MongoDB controllers
+│   └── index.js                # Main Express routes, WebSockets signaling, and controllers
 │
 ├── api/
-│   └── index.js                # Vercel entrypoint delegating requests to server/index.js
+│   └── index.js                # Vercel endpoint re-exporting server/index.js
 │
 ├── db/
-│   ├── init-mongo.js           # Database initialization script (collections & index setup)
-│   ├── fallback-entrances.json # Local fallback JSON storage for candidate registrations
-│   ├── fallback-sessions.json  # Local fallback JSON storage for interview state data
-│   ├── fallback-aiconfig.json  # Local fallback JSON storage for AI prompt instructions
-│   └── previews/               # Dir storing static webcam/screen captures (base64 writes)
+│   ├── init-mongo.js           # Database collections initialization script
+│   ├── fallback-entrances.json # Local fallback JSON storage: registrations
+│   ├── fallback-sessions.json  # Local fallback JSON storage: active sessions
+│   ├── fallback-aiconfig.json  # Local fallback JSON storage: AI instruction prompts
+│   └── previews/               # Dir storing static base64 candidate feed frames
 │
-├── admin_login.html            # Admin login page
-├── admin_live_interviews.html  # Dashboard listing active & completed sessions
-├── admin_monitor.html          # Interactive control room (live feeds, draft sync, chat takeover)
+├── admin_login.html            # Credentials gateway for admin panel
+├── admin_live_interviews.html  # Monitors overview: currently active & completed interviews
+├── admin_monitor.html          # Takeover room: live streams, draft sync, chat control, metrics
 ├── admin_students.html         # Candidate registry with filter, search, and report portals
-├── admin_ai_config.html        # Console for editing global AI instructions
-├── admin_audit_logs.html       # Compliance tracker showing start/takeover/complete events
-├── admin_training.html         # Portal to register supervised rubric corrections
+├── admin_ai_config.html        # Console for configuring global AI instructions
+├── admin_audit_logs.html       # Auditing log portal for monitoring events
+├── admin_training.html         # Portal to feed feedback/corrections to the AI evaluator
 │
 ├── student_registration.html   # Student signup page (USN, Branch, College, Year)
 ├── student_dashboard.html      # Landing dashboard showing student history, stats & starting actions
-├── student_introduction.html   # Round selection (Introduction, Aptitude, Technical, HR)
-├── student_setup.html          # Media system check page (Permissions check for cam/mic)
-├── student_room.html           # Live interview dashboard (speech-to-text, TTS synthesis, WebSockets)
-├── student_report.html         # Custom scorecard (scores, strengths, improvements)
+├── student_introduction.html   # Assessment round selection (Technical, HR, Aptitude, Intro)
+├── student_setup.html          # Camera, Mic pre-check, and voice calibration page
+├── student_room.html           # Live interview room (speech-to-text, audio TTS, code sandbox)
+├── student_report.html         # Grade scorecard (overall rating, strengths, weaknesses, metrics)
 └── student_leaderboard.html    # Leaderboard displaying rankings of top scorers
 ```
 
 ---
 
-## 3. Database Schema & Fallback Model
+## 3. Database Schema & Fallback System
 
-The app is built on a **dual-database design**. If MongoDB is unreachable (e.g., in standalone offline setups), the backend switches to a local file-based database (`fallback-*.json`).
+The system operates on a **dual-database design**. If MongoDB is unreachable, it automatically triggers a local, file-based database fallback (`db/fallback-*.json`) to prevent system crashes.
 
-### Collections and Fields
+### Principal Data Structures
 
 #### 1. `interviewsessions` (Fallback: `fallback-sessions.json`)
-Saves the state of candidate mock sessions.
+Tracks the current state, metadata, transcripts, and evaluation scorecards for mock interviews.
 ```typescript
 interface InterviewSession {
   _id?: ObjectId;
-  sessionId: string;          // Randomized token
-  mode: 'ai' | 'admin';       // Controls takeover mode
-  adminMessage: string | null;// Admin takeover message to speak
-  studentAnswer: string | null;// Real-time answer draft / submission
-  studentName: string;        // E.g., John Doe
-  usn: string;                // University Seat Number (Case-insensitive)
+  sessionId: string;             // Unique candidate token
+  mode: 'ai' | 'admin';          // active mode (admin represents takeover mode)
+  adminMessage: string | null;   // Admin message queued to speak
+  studentAnswer: string | null;  // Real-time answer draft/final
+  studentName: string;
+  usn: string;                   // Candidate ID USN (Unique string)
   college: string;
   branch: string;
   year: string;
@@ -128,110 +128,80 @@ interface InterviewSession {
   updatedAt: Date;
   completedAt?: Date;
   transcript: Array<{ role: 'ai' | 'student' | 'admin', text: string }>;
-  improvements?: Array<string>; // Training corrections submitted by admins
-  score?: number;             // Generated by Gemini (0-100)
-  feedback?: string;          // Overall feedback text
-  strengths?: string[];
+  improvements?: Array<string>;  // Admin training adjustments
+  score?: number;                // Final Gemini score (0-100)
+  feedback?: string;             // Detailed Gemini evaluation feedback
+  strengths?: string[];          // Top candidate strengths
+  vallyMetrics?: {               // Behavior metrics average
+    confidence: number;
+    vocabulary: number;
+    answering: number;
+    nervousness: number;
+    faceExpression: number;
+    questionUnderstand: number;
+  };
 }
 ```
 
 #### 2. `aiconfigs` (Fallback: `fallback-aiconfig.json`)
-Stores prompt directives given to Gemini.
-*   `instructions`: Markdown instructions string.
+Saves system-level prompts and behavior rubrics passed to the Gemini API.
 
-#### 3. `entrances` (Fallback: `fallback-entrances.json`)
-Legacy collection retained for backward-compatibility.
-*   `name`, `branch`, `field`, `createdAt`.
+#### 3. `interviewquestions` (Fallback: `fallback-questions.json`)
+Contains the list of questions segmented by interview round type (`Basic Introduction`, `Aptitude Round`, `Technical Round`, `HR Round`).
 
 ---
 
-## 4. API Specification
+## 4. Mechanical Implementations & Recent Upgrades
 
-| Endpoint | Method | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `/api/admin/login` | `POST` | None | Verifies credentials; yields HttpOnly `admin_auth` cookie. |
-| `/api/admin/logout` | `POST` | None | Expires the admin cookie. |
-| `/api/admin/sessions` | `GET` | Admin | Fetches all session logs. |
-| `/api/admin/ai-config` | `GET` | Admin | Retrieves Gemini instructions. |
-| `/api/admin/ai-config` | `POST` | Admin | Updates instructions. |
-| `/api/admin/training-feedback` | `POST` | Admin | Inserts a training correction note for the specified session. |
-| `/api/student/register` | `POST` | None | registers candidate & returns a unique `sessionId`. |
-| `/api/student/sessions` | `GET` | None | Returns completed session histories for a given candidate's USN. |
-| `/api/interview/start` | `POST` | None | Yields the first question based on selected round (`QUESTIONS_BY_ROUND`). |
-| `/api/interview/answer` | `POST` | None | Analyzes answer index and responds with subsequent question or completion message. |
-| `/api/interview/sync` | `GET` | None | Retrieves live details of a session. |
-| `/api/interview/sync` | `POST` | None | Updates current status parameters (Takeover status, messages, mode). |
-| `/api/leaderboard` | `GET` | None | Lists top 20 best scorers. |
-| `/api/interview/complete` | `POST` | None | Submits the transcript to Gemini 2.5 Flash for evaluation and scores. |
-| `/api/compile` | `POST` | None | Submits code (Python, Javascript, C, C++, Java) to be executed on host. |
-| `/api/preview/:id` | `GET` | None | Retrieves latest webcam/screen capture snapshot. |
-| `/api/preview/:id` | `POST` | None | Uploads a base64 webcam/screen capture snapshot. |
+### 1. Voice Recognition & Precheck Calibration (`student_setup.html`)
+To prevent microphone mismatches or quiet input issues inside the interview room, a voice calibration step has been added to the setup sequence:
+*   **10-Word Calibration Phrase:** Candidates are prompted to speak exactly: `"My microphone is working and I am ready to start"`.
+*   **Visual Calibration Waveform:** Highly styled divs act as a live mic visualizer using keyframed CSS pulses when SpeechRecognition captures volume activity.
+*   **Live Feedback:** A transcript box shows exactly what the Speech Recognition API is hearing.
+*   **Flexible Matching Engine:** If the Web Speech API recognizes the keywords (`microphone`, `working`, `ready`, `start`) or registers a total phrase length of 7+ words, it completes the check. It also contains manual override skip options for accessibility and browser compatibility.
 
----
+### 2. Audio Speech Synthesis (TTS) & State Controller (`student_room.html`)
+*   **Reliable State Machine:** Cleaned up browser-level hangs by replacing `window.speechSynthesis.speaking` checks with our internal `isAIActive` state machine tracking.
+*   **Chrome/Edge Speech Synthesis Hang Mitigation:** Modified speech synthesis callbacks to pass `force = true` on `onend`, `onerror`, and `onboundary` timeouts. This bypasses browser-level speech synthesis loops and forces the room to transition to active listening.
 
-## 5. Real-Time Synchronization & Streaming
+### 3. Transcript Normalization (`cleanTTSBleed`)
+*   **Eco/Bleed Filter Optimization:** Web Speech API captures audio bleed if speakers are active. The `cleanTTSBleed` filter washes out question segments from candidate transcriptions.
+*   **Short Response Safeguard:** Refactored the cleanup matching algorithm to *only* clean transcripts if they exactly match a long question (length > 3 words) or contain a full question phrase. This prevents short student responses (like "Yes", "Java", "SQL") from being stripped out.
 
-### WebSocket Signaling (`/ws`)
-A single WebSocket server handles real-time coordination between candidate rooms and observing admins:
-
-```
-                  +--------------------------------+
-                  |         WebSocket Server       |
-                  +--------------------------------+
-                     ^                           ^
-     [register candidate]                     [register admin]
-                     |                           |
-            (Student Client)               (Admin Client)
-                     |                           |
-        [preview: base64 img] -------------------> [forward preview]
-        [draft: live transcript] ---------------> [forward draft]
-```
-
-1.  **Registration**:
-    *   `register` message: `{ type: 'register', role: 'candidate' | 'admin', id: sessionId }`
-2.  **Webcam & Screen Previews**:
-    *   `preview` message: `{ type: 'preview', previewType: 'cam' | 'screen', image: 'data:image/jpeg;base64,...' }`
-    *   Forwarded directly to registered admin sockets.
-3.  **Draft Text Matching**:
-    *   `draft` message: `{ type: 'draft', text: string }`
-    *   Transmits live speech recognition fragments to the admin monitor for real-time review.
-
-### PeerJS Video & Screen Sharing
-*   Provides WebRTC peer connection signalling.
-*   **Student Side**: Registers peer as `student-${sessionId}` and answers calls by passing their `localStream`. Also calls the admin as `admin-${sessionId}` when screen-sharing is toggled to push the video track.
-*   **Admin Side**: Registers peer as `admin-${sessionId}` and calls `student-${sessionId}` on load to hook up webcam feeds. Also listens to incoming calls to attach screen-sharing tracks.
+### 4. Background Scorecard Evaluations (`server/index.js` & `student_room.html`)
+*   **Instant Exit Redirect:** When the student exits or completes the interview, `endInterview()` triggers a POST request to `/api/interview/complete` and immediately redirects the client to `student_report.html` in milliseconds.
+*   **Asynchronous Evaluations:** The backend Express server receives the request, instantly returns `{ success: true }` to the client, and evaluates the transcript in the background using Gemini 2.5 Flash. The scorecard loading screen (`student_report.html`) polls `/api/interview/sync` every 3 seconds, rendering the score results the moment the background job updates the session document.
 
 ---
 
-## 6. Frontend Core Mechanics
+## 5. WebSocket Signaling & PeerJS Streams
 
-### 1. Speech Recognition & Auto-Submission (`student_room.html`)
-*   Uses `window.webkitSpeechRecognition` for translating spoken answers.
-*   Incorporates **4-second silence detection**: a timer (`silenceTimer`) is reset every time new text matches. If no new words are detected for 4 seconds, `handleAutoSubmit()` runs automatically, pushing the text to `/api/interview/answer`.
-*   Includes a text box fallback if Speech Recognition permissions fail.
+### WebSocket Router
+A lightweight signaling pipeline connects observing admins with candidates over a `/ws` WebSocket endpoint:
+*   **Draft Sync:** The candidate transmits raw speech recognition drafts to the WebSocket. The server forwards these drafts directly to observing admin channels so admins can review transcripts in real-time.
+*   **Previews Sync:** In-memory canvas snapshots are captured at `1500ms` intervals and pushed as compressed base64 frames to the WebSocket, serving as static admin webcam/screen monitors.
 
-### 2. Audio Speech Synthesis (TTS)
-*   Translates questions into audio using `SpeechSynthesisUtterance`.
-*   Enforces a strict lifecycle: candidate microphone is muted/paused during speech synthesis, and recognition restarts automatically (`startListening()`) only when `utterance.onend` fires.
-
-### 3. Takeover Mechanics
-*   The student page polls `/api/interview/sync` every 3 seconds.
-*   If `mode === 'admin'`, automated question paths are paused. The page waits for `adminMessage` updates, which are dynamically spoken via TTS and logged into the candidate's transcript bubble container.
+### PeerJS WebRTC Setup
+*   Candidate mounts camera feeds under a unique `student-${sessionId}` peer namespace.
+*   The admin peer (`admin-${sessionId}`) calls the candidate to open a peer-to-peer WebRTC webcam connection.
+*   When screen share is enabled, the candidate peer acts as the caller, dialing `admin-${sessionId}` to attach the screen capture media track.
 
 ---
 
-## 7. Security & Engineering Recommendations
+## 6. Host Code Compiler Sandboxing (`/api/compile`)
 
-1.  **PeerJS Broker Server Configuration**:
-    *   *Current*: Instantiates `new Peer()` without options, defaulting to public `0.peerjs.com` cloud servers.
-    *   *Improvement*: Spin up a private local/cloud PeerJS broker server and pass `host`/`port` settings to ensure stability and isolate media signaling.
-2.  **Code Compilation Sandboxing**:
-    *   *Current*: The `/api/compile` route runs shell compilers directly on the host operating system via `child_process.execFile` (e.g. `gcc`, `java`, `python`).
-    *   *Improvement*: This poses a high-risk security hazard (arbitrary code execution). Implement containerized sandboxing (e.g., using Docker or a secure sandbox library like `isolate`) to run candidate code safely.
-3.  **Authentication Guarding**:
-    *   *Current*: Admin cookie checks use a basic substring match on cookie header (`admin_auth=authenticated`).
-    *   *Improvement*: Apply JWTs or cryptographically signed session tokens for secure validation.
-    *   *Security Note*: Standard HttpOnly cookies are used but checking is done via primitive text splits, which is secure enough but could be streamlined.
-4.  **WebSocket Reconnection**:
-    *   *Current*: Basic timeout-based retry on socket close.
-    *   *Improvement*: Add exponential backoff to WebSocket reconnects to prevent network overhead during connection loss.
+Candidates can execute python, javascript, C, C++, and Java code blocks in the interview room:
+*   **Compilation / Runner Pipeline:**
+    *   **Python:** Executes scripts via `python3` / `python`.
+    *   **JavaScript:** Executes code blocks using the local `node` runtime.
+    *   **C / C++:** Compiles programs via `gcc` / `g++` and runs binary executables.
+    *   **Java:** Compiles code via `javac` and executes class structures.
+*   *Note:* Code runs under child processes (`execFile`) inside temporary workspaces in the compile root.
+
+---
+
+## 7. Key Security & Development Recommendations
+
+1.  **Code Compilation Isolation:** The `/api/compile` endpoint runs candidate code directly on the host using `execFile`. This presents a remote code execution risk. Candidates should compile and run code in isolated virtual sandboxes (like Docker containers or isolate sandboxes).
+2.  **JWT or Signed Cookies:** Authenticating admin routes currently relies on split checks on `admin_auth=authenticated` values. Implementing signed cookie keys or JSON Web Tokens (JWT) would secure sessions from tampering.
+3.  **Local PeerJS Broker:** For production scaling and offline compliance, replace the cloud-based `0.peerjs.com` broker server with a dedicated self-hosted PeerJS broker server.
