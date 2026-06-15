@@ -11,10 +11,10 @@
   --accent-hover: #7c3aed; /* Violet 600 */
   --accent-danger: #ef4444; /* Red 500 */
   
-  --glass-bg: rgba(139, 92, 246, 0.75);
-  --glass-border: rgba(109, 40, 217, 0.45);
+  --glass-bg: rgba(30, 58, 138, 0.85);
+  --glass-border: rgba(30, 58, 138, 0.55);
   --glass-blur: blur(16px);
-  --glass-shadow: 0 20px 40px -15px rgba(109, 40, 217, 0.25), 0 8px 20px -6px rgba(15, 23, 42, 0.18);
+  --glass-shadow: 0 20px 40px -15px rgba(30, 58, 138, 0.3), 0 8px 20px -6px rgba(15, 23, 42, 0.18);
 
   --font-family: 'Inter', sans-serif;
 }
@@ -451,7 +451,7 @@ p {
 .glass-panel .input-field {
   background: #ffffff !important;
   color: #0f172a !important;
-  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+  border: 1px solid rgba(30, 58, 138, 0.45) !important;
 }
 
 .glass-panel .input-field::placeholder {
@@ -475,8 +475,8 @@ p {
 }
 
 .glass-panel .chat-bubble.student {
-  border-right: 3px solid #d8b4fe !important;
-  background: rgba(216, 180, 254, 0.15) !important;
+  border-right: 3px solid #60a5fa !important;
+  background: rgba(96, 165, 250, 0.15) !important;
 }
 
 .glass-panel .btn-secondary {
