@@ -326,7 +326,7 @@ Respond ONLY with a valid JSON object in this exact format:
     let parsed = {};
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash-8b',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
@@ -390,6 +390,154 @@ Respond ONLY with a valid JSON object in this exact format:
   } catch (err) {
     console.error("evaluateRealTimeMetrics error:", err);
     return metrics || null;
+  }
+}
+
+async function runBackgroundEvaluation(sessionId, transcript, vallyMetricsHistory) {
+  console.log(`Starting background evaluation for session ${sessionId}...`);
+  try {
+    const transcriptStr = transcript
+      .map(m => `${m.role === 'ai' ? 'INTERVIEWER' : m.role === 'student' ? 'CANDIDATE' : 'ADMIN'}: ${m.text}`)
+      .join('\n');
+
+    let savedVallyMetrics = null;
+    let historyForScore = vallyMetricsHistory || [];
+
+    // Try to load the latest vallyMetricsHistory from the DB/fallback if possible
+    try {
+      if (mongoUnavailable) {
+        const s = backupSessions.find(x => x.sessionId === sessionId);
+        if (s && s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
+          historyForScore = s.vallyMetricsHistory;
+        }
+      } else {
+        const client = await connectDb();
+        if (client) {
+          const db = client.db(DB_NAME);
+          const s = await db.collection('interviewsessions').findOne({ sessionId });
+          if (s && s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
+            historyForScore = s.vallyMetricsHistory;
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn("Could not fetch latest history from DB on complete, using client history:", dbErr);
+    }
+    
+    if (historyForScore.length > 0) {
+      const count = historyForScore.length;
+      savedVallyMetrics = {
+        confidence: Math.round(historyForScore.reduce((a, b) => a + (b.confidence || 0), 0) / count),
+        vocabulary: Math.round(historyForScore.reduce((a, b) => a + (b.vocabulary || 0), 0) / count),
+        answering: Math.round(historyForScore.reduce((a, b) => a + (b.answering || 0), 0) / count),
+        nervousness: Math.round(historyForScore.reduce((a, b) => a + (b.nervousness || 0), 0) / count),
+        faceExpression: Math.round(historyForScore.reduce((a, b) => a + (b.faceExpression || 0), 0) / count),
+        questionUnderstand: Math.round(historyForScore.reduce((a, b) => a + (b.questionUnderstand || 0), 0) / count)
+      };
+    }
+    
+    // Calculate real-time cumulative score from metrics instead of relying on the final AI evaluation
+    const calculatedTotalScore = historyForScore.reduce((sum, item) => sum + (item.answerScore || 0), 0);
+    const hasStudentAnswers = transcript.some(m => m.role === 'student');
+    
+    let score = Math.min(100, Math.max(0, calculatedTotalScore));
+    let feedback = 'Good effort. Keep practicing to improve your interview skills.';
+    let strengths = ['Showed willingness to engage', 'Attempted all questions'];
+    let improvements = ['Work on technical depth', 'Practice clear explanations'];
+
+    if (!hasStudentAnswers) {
+      score = 0;
+      feedback = 'The candidate exited the interview without providing any answers.';
+    } else {
+      const transcriptStr = transcript.map(m => `${m.role === 'student' ? 'CANDIDATE' : 'INTERVIEWER'}: ${m.text}`).join('\n');
+      
+      let vallyMetricsStr = '';
+      if (savedVallyMetrics) {
+        vallyMetricsStr = `Here are the candidate's real-time behavioral metrics (out of 10) tracked during the interview:
+Confidence: ${savedVallyMetrics.confidence}
+Vocabulary: ${savedVallyMetrics.vocabulary}
+Answering: ${savedVallyMetrics.answering}
+Nervousness: ${savedVallyMetrics.nervousness}
+Face Expression: ${savedVallyMetrics.faceExpression}
+Understanding: ${savedVallyMetrics.questionUnderstand}\n`;
+      }
+
+      const evaluationPrompt = `You are an expert interview evaluator. Evaluate this interview transcript.
+TRANSCRIPT:
+${transcriptStr}
+${vallyMetricsStr}
+Evaluate the candidate and respond with ONLY valid JSON in this exact format:
+{
+  "feedback": "<1 short sentence overall feedback>",
+  "strengths": ["<1-2 words>", "<1-2 words>", "<1-2 words>"],
+  "improvements": ["<1-2 words>", "<1-2 words>", "<1-2 words>"]
+}
+Provide strengths and improvements based on the candidate's answers and behavioral metrics. Be concise.`;
+
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: evaluationPrompt,
+          });
+
+          const raw = (response.text || '').trim();
+          const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+          const parsed = JSON.parse(jsonStr);
+
+          if (parsed.feedback) feedback = parsed.feedback;
+          if (Array.isArray(parsed.strengths)) strengths = parsed.strengths.slice(0, 3);
+          if (Array.isArray(parsed.improvements)) improvements = parsed.improvements.slice(0, 3);
+        } catch (aiErr) {
+          console.error('AI evaluation failed, using defaults:', aiErr.message);
+          feedback = `[SYSTEM ERROR] AI evaluation failed: ${aiErr.message}`;
+        }
+      } else {
+        console.warn('GEMINI_API_KEY not set. Using fallback scoring.');
+      }
+    }
+
+    const updateDoc = {
+      status: 'completed',
+      completedAt: new Date(),
+      updatedAt: new Date(),
+      transcript,
+      score,
+      feedback,
+      strengths,
+      improvements,
+      ...(savedVallyMetrics ? { vallyMetrics: savedVallyMetrics } : {})
+    };
+
+    if (mongoUnavailable) {
+      let session = backupSessions.find(s => s.sessionId === sessionId);
+      if (!session) {
+        session = { sessionId, mode: 'ai', startTime: new Date() };
+        backupSessions.unshift(session);
+      }
+      Object.assign(session, updateDoc);
+      await saveSessionsFallback();
+    } else {
+      const client = await connectDb();
+      if (client) {
+        const db = client.db(DB_NAME);
+        await db.collection('interviewsessions').updateOne(
+          { sessionId },
+          { $set: updateDoc }
+        );
+      } else {
+        let session = backupSessions.find(s => s.sessionId === sessionId);
+        if (!session) {
+          session = { sessionId, mode: 'ai', startTime: new Date() };
+          backupSessions.unshift(session);
+        }
+        Object.assign(session, updateDoc);
+        await saveSessionsFallback();
+      }
+    }
+    console.log(`Background evaluation completed successfully for session ${sessionId}`);
+  } catch (backgroundErr) {
+    console.error(`Error in runBackgroundEvaluation for session ${sessionId}:`, backgroundErr);
   }
 }
 
@@ -777,7 +925,7 @@ async function startServer() {
       if (process.env.GEMINI_API_KEY && answer.trim().length > 2) {
         try {
           const corrResp = await ai.models.generateContent({
-            model: 'gemini-1.5-flash-8b',
+            model: 'gemini-2.5-flash',
             contents: `You are an expert speech-to-text corrector. Correct obvious garbled/misheard words in this candidate response to the interview question.
 Context:
 Question Asked: "${question || "Unknown question"}"
@@ -997,158 +1145,23 @@ Return ONLY the corrected transcription text with no additional wrapper or expla
   });
 
   // interview complete (Gemini Evaluation)
-  app.post('/api/interview/complete', async (req, res) => {
+  app.post('/api/interview/complete', (req, res) => {
     try {
       const { sessionId, transcript, vallyMetricsHistory } = req.body;
       if (!sessionId || !Array.isArray(transcript)) {
         return res.status(400).json({ error: 'Missing sessionId or transcript' });
       }
 
-      const transcriptStr = transcript
-        .map(m => `${m.role === 'ai' ? 'INTERVIEWER' : m.role === 'student' ? 'CANDIDATE' : 'ADMIN'}: ${m.text}`)
-        .join('\n');
+      // Send immediate success response to client so navigation transitions instantly
+      res.json({ success: true, message: "Evaluation initiated in the background." });
 
-      let savedVallyMetrics = null;
-      let historyForScore = vallyMetricsHistory || [];
-
-      // Try to load the latest vallyMetricsHistory from the DB/fallback if possible
-      try {
-        if (mongoUnavailable) {
-          const s = backupSessions.find(x => x.sessionId === sessionId);
-          if (s && s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
-            historyForScore = s.vallyMetricsHistory;
-          }
-        } else {
-          const client = await connectDb();
-          if (client) {
-            const db = client.db(DB_NAME);
-            const s = await db.collection('interviewsessions').findOne({ sessionId });
-            if (s && s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
-              historyForScore = s.vallyMetricsHistory;
-            }
-          }
-        }
-      } catch (dbErr) {
-        console.warn("Could not fetch latest history from DB on complete, using client history:", dbErr);
-      }
-      
-      if (historyForScore.length > 0) {
-        const count = historyForScore.length;
-        savedVallyMetrics = {
-          confidence: Math.round(historyForScore.reduce((a, b) => a + (b.confidence || 0), 0) / count),
-          vocabulary: Math.round(historyForScore.reduce((a, b) => a + (b.vocabulary || 0), 0) / count),
-          answering: Math.round(historyForScore.reduce((a, b) => a + (b.answering || 0), 0) / count),
-          nervousness: Math.round(historyForScore.reduce((a, b) => a + (b.nervousness || 0), 0) / count),
-          faceExpression: Math.round(historyForScore.reduce((a, b) => a + (b.faceExpression || 0), 0) / count),
-          questionUnderstand: Math.round(historyForScore.reduce((a, b) => a + (b.questionUnderstand || 0), 0) / count)
-        };
-      }
-      
-      // Calculate real-time cumulative score from metrics instead of relying on the final AI evaluation
-      const calculatedTotalScore = historyForScore.reduce((sum, item) => sum + (item.answerScore || 0), 0);
-      const hasStudentAnswers = transcript.some(m => m.role === 'student');
-      
-      let score = Math.min(100, Math.max(0, calculatedTotalScore));
-      let feedback = 'Good effort. Keep practicing to improve your interview skills.';
-      let strengths = ['Showed willingness to engage', 'Attempted all questions'];
-      let improvements = ['Work on technical depth', 'Practice clear explanations'];
-
-      if (!hasStudentAnswers) {
-        score = 0;
-        feedback = 'The candidate exited the interview without providing any answers.';
-      } else {
-        const transcriptStr = transcript.map(m => `${m.role === 'student' ? 'CANDIDATE' : 'INTERVIEWER'}: ${m.text}`).join('\n');
-        
-        let vallyMetricsStr = '';
-        if (savedVallyMetrics) {
-          vallyMetricsStr = `Here are the candidate's real-time behavioral metrics (out of 10) tracked during the interview:
-Confidence: ${savedVallyMetrics.confidence}
-Vocabulary: ${savedVallyMetrics.vocabulary}
-Answering: ${savedVallyMetrics.answering}
-Nervousness: ${savedVallyMetrics.nervousness}
-Face Expression: ${savedVallyMetrics.faceExpression}
-Understanding: ${savedVallyMetrics.questionUnderstand}\n`;
-        }
-
-          const evaluationPrompt = `You are an expert interview evaluator. Evaluate this interview transcript.
-TRANSCRIPT:
-${transcriptStr}
-${vallyMetricsStr}
-Evaluate the candidate and respond with ONLY valid JSON in this exact format:
-{
-  "feedback": "<1 short sentence overall feedback>",
-  "strengths": ["<1-2 words>", "<1-2 words>", "<1-2 words>"],
-  "improvements": ["<1-2 words>", "<1-2 words>", "<1-2 words>"]
-}
-Provide strengths and improvements based on the candidate's answers and behavioral metrics. Be concise.`;
-
-        if (process.env.GEMINI_API_KEY) {
-          try {
-            const response = await ai.models.generateContent({
-              model: 'gemini-1.5-flash-8b',
-              contents: evaluationPrompt,
-            });
-
-            const raw = (response.text || '').trim();
-            const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-            const parsed = JSON.parse(jsonStr);
-
-            if (parsed.feedback) feedback = parsed.feedback;
-            if (Array.isArray(parsed.strengths)) strengths = parsed.strengths.slice(0, 3);
-            if (Array.isArray(parsed.improvements)) improvements = parsed.improvements.slice(0, 3);
-          } catch (aiErr) {
-            console.error('AI evaluation failed, using defaults:', aiErr.message);
-            feedback = `[SYSTEM ERROR] AI evaluation failed: ${aiErr.message}`;
-          }
-        } else {
-          console.warn('GEMINI_API_KEY not set. Using fallback scoring.');
-        }
-      }
-
-      const updateDoc = {
-        status: 'completed',
-        completedAt: new Date(),
-        updatedAt: new Date(),
-        transcript,
-        score,
-        feedback,
-        strengths,
-        improvements,
-        ...(savedVallyMetrics ? { vallyMetrics: savedVallyMetrics } : {})
-      };
-
-      if (mongoUnavailable) {
-        let session = backupSessions.find(s => s.sessionId === sessionId);
-        if (!session) {
-          session = { sessionId, mode: 'ai', startTime: new Date() };
-          backupSessions.unshift(session);
-        }
-        Object.assign(session, updateDoc);
-        await saveSessionsFallback();
-        return res.json({ success: true, score, feedback, strengths, improvements });
-      }
-
-      const client = await connectDb();
-      if (client) {
-        const db = client.db(DB_NAME);
-        await db.collection('interviewsessions').updateOne(
-          { sessionId },
-          { $set: updateDoc }
-        );
-        return res.json({ success: true, score, feedback, strengths, improvements });
-      }
-
-      let session = backupSessions.find(s => s.sessionId === sessionId);
-      if (!session) {
-        session = { sessionId, mode: 'ai', startTime: new Date() };
-        backupSessions.unshift(session);
-      }
-      Object.assign(session, updateDoc);
-      await saveSessionsFallback();
-      res.json({ success: true, score, feedback, strengths, improvements });
+      // Run evaluation asynchronously in the background
+      void runBackgroundEvaluation(sessionId, transcript, vallyMetricsHistory);
     } catch (err) {
-      console.error('Error completing interview:', err);
-      res.status(500).json({ error: 'Failed to complete interview' });
+      console.error('Error starting complete interview request:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to complete interview' });
+      }
     }
   });
 

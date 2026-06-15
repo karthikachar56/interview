@@ -231,30 +231,14 @@
       
       if (!qClean || !tClean) return transcription;
       
-      // If the transcription contains the entire question, filter it out
-      if (tClean.includes(qClean)) {
+      // If the transcription is long and contains the entire question word-for-word, clean it.
+      if (tClean.length > 15 && tClean.includes(qClean)) {
         return transcription.substring(transcription.toLowerCase().indexOf(qClean) + qClean.length).trim();
       }
       
-      // Split into words
-      const qWords = qClean.split(/\s+/);
-      const tWords = tClean.split(/\s+/);
-      
-      // If transcription is a subset of the question words in the exact same order, ignore it
-      if (tWords.length > 0 && tWords.length <= qWords.length) {
-        let isSubset = true;
-        let lastIdx = -1;
-        for (let w of tWords) {
-          const idx = qWords.indexOf(w, lastIdx + 1);
-          if (idx === -1) {
-            isSubset = false;
-            break;
-          }
-          lastIdx = idx;
-        }
-        if (isSubset) {
-          return "";
-        }
+      // Only discard if the text matches the question exactly and is a long question (preventing false positives for short answers)
+      if (tClean === qClean && qClean.split(/\s+/).length > 3) {
+        return "";
       }
       
       return transcription;
@@ -305,8 +289,8 @@
       };
 
       recognition.onresult = (event) => {
-        // Ignore everything while AI is speaking or queued to speak
-        if (isAIActive || window.speechSynthesis.speaking) return;
+        // Ignore everything while AI is active (speaking)
+        if (isAIActive) return;
 
         let interim = '';
         let final = '';
@@ -417,13 +401,13 @@
       };
 
       // Layer 1: onend (instant when Chrome cooperates)
-      utterance.onend   = () => activate(false);
-      utterance.onerror = () => activate(false);
+      utterance.onend   = () => activate(true);
+      utterance.onerror = () => activate(true);
 
       // Layer 2: onboundary rolling timer (immune to GC — fires per word)
       utterance.onboundary = () => {
         if (boundaryTimer) clearTimeout(boundaryTimer);
-        boundaryTimer = setTimeout(() => activate(false), 350);
+        boundaryTimer = setTimeout(() => activate(true), 350);
       };
 
       // Layer 3: char-count timer — primary reliable fallback (forces transition if Chrome hangs)

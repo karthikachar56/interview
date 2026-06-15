@@ -30,6 +30,33 @@
     .check-status {
       font-weight: 500;
     }
+
+    /* Mic Wave animation for voice verification check */
+    @keyframes mic-pulse {
+      0% { transform: scaleY(1); }
+      50% { transform: scaleY(2.2); }
+      100% { transform: scaleY(1); }
+    }
+    .mic-wave {
+      display: inline-block;
+      width: 6px;
+      height: 16px;
+      background: var(--accent-secondary);
+      border-radius: 3px;
+      transition: transform 0.2s ease;
+    }
+    .mic-wave-active {
+      animation: mic-pulse 0.8s ease-in-out infinite;
+    }
+    .mic-wave-active:nth-child(1) {
+      animation-delay: 0.1s;
+    }
+    .mic-wave-active:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+    .mic-wave-active:nth-child(3) {
+      animation-delay: 0.5s;
+    }
   </style>
 </head>
 <body>
@@ -49,8 +76,39 @@
           <span id="networkStatus" class="check-status">⏳ Pending</span>
         </div>
         <div class="check-item">
-          <span>Lighting & Background</span>
-          <span id="lightingStatus" class="check-status">⏳ Pending</span>
+          <span>Voice Recognition Check</span>
+          <span id="voiceStatus" class="check-status">⏳ Pending</span>
+        </div>
+      </div>
+
+      <!-- Voice Test Panel -->
+      <div id="voicePanel" class="glass-panel animate-fade-in-up" style="display: none; padding: 2rem; margin-top: 1rem; margin-bottom: 2rem; border: 1px solid var(--accent-primary); background: rgba(139, 92, 246, 0.03); text-align: center;">
+        <h3 style="margin-bottom: 0.5rem; color: var(--accent-secondary); font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          🎙️ Speech Calibration & Warm-Up
+        </h3>
+        <p style="margin-bottom: 1.25rem; font-size: 0.95rem; color: var(--text-secondary);">
+          Please speak the warm-up phrase clearly into your microphone to verify speech recognition calibration:
+        </p>
+        
+        <div style="font-size: 1.75rem; font-weight: 700; color: #fff; margin: 1.5rem auto; padding: 1rem 1.5rem; background: rgba(0, 0, 0, 0.3); border-radius: 0.75rem; border: 1px dashed var(--glass-border); max-width: 450px; text-shadow: 0 0 10px rgba(139, 92, 246, 0.3);">
+          "My microphone is working and I am ready to start"
+        </div>
+
+        <div id="micPulseContainer" style="display: flex; justify-content: center; align-items: center; gap: 0.375rem; margin: 1.5rem 0; height: 30px;">
+          <div class="mic-wave"></div>
+          <div class="mic-wave" style="height: 25px;"></div>
+          <div class="mic-wave"></div>
+        </div>
+
+        <div style="margin-top: 1.5rem; background: rgba(0, 0, 0, 0.15); padding: 1rem; border-radius: 0.5rem; text-align: left;">
+          <div style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">We Heard:</div>
+          <div id="voiceTranscript" style="font-style: italic; min-height: 24px; color: var(--accent-primary); font-weight: 500; font-size: 1.1rem; line-height: 1.4;">
+            Listening for your voice...
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
+          <button id="skipVoiceBtn" class="btn-secondary" style="padding: 0.5rem 1.25rem; font-size: 0.875rem;">Skip Voice Test</button>
         </div>
       </div>
 
@@ -83,10 +141,16 @@
     const startBtn = document.getElementById('startBtn');
     const checkPanel = document.getElementById('checkPanel');
     const readyPanel = document.getElementById('readyPanel');
+    const voicePanel = document.getElementById('voicePanel');
+    const skipVoiceBtn = document.getElementById('skipVoiceBtn');
 
     const mediaStatus = document.getElementById('mediaStatus');
     const networkStatus = document.getElementById('networkStatus');
-    const lightingStatus = document.getElementById('lightingStatus');
+    const voiceStatus = document.getElementById('voiceStatus');
+    const voiceTranscript = document.getElementById('voiceTranscript');
+
+    let recognition = null;
+    let isVoiceCheckComplete = false;
 
     checkBtn.addEventListener('click', async () => {
       checkBtn.disabled = true;
@@ -104,11 +168,10 @@
         networkStatus.textContent = '✅ Ready';
         networkStatus.style.color = '#10b981';
 
-        lightingStatus.textContent = '✅ Ready';
-        lightingStatus.style.color = '#10b981';
-
         checkPanel.style.display = 'none';
-        readyPanel.style.display = 'block';
+        
+        // Proceed to voice check
+        startVoiceCheck();
       } catch (err) {
         console.error("System Check failed:", err);
         alert("Please grant camera and microphone permissions to proceed.");
@@ -118,6 +181,123 @@
         mediaStatus.textContent = '❌ Denied';
         mediaStatus.style.color = 'var(--accent-danger)';
       }
+    });
+
+    function startVoiceCheck() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        console.warn('Speech Recognition not supported in this browser.');
+        voiceStatus.textContent = '⚠️ Unsupported';
+        voiceStatus.style.color = '#eab308';
+        voiceTranscript.textContent = "Web Speech API is not supported in this browser. You can still enter the room and answer by typing.";
+        
+        // Show ready panel directly since speech recog is unsupported
+        readyPanel.style.display = 'block';
+        return;
+      }
+
+      voiceStatus.textContent = '🎙️ Listening...';
+      voiceStatus.style.color = 'var(--accent-primary)';
+      voicePanel.style.display = 'block';
+
+      // Start pulsing waves
+      const waves = document.querySelectorAll('.mic-wave');
+      waves.forEach(w => w.classList.add('mic-wave-active'));
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        console.log('Voice check SpeechRecognition started.');
+      };
+
+      recognition.onresult = (event) => {
+        if (isVoiceCheckComplete) return;
+
+        let interim = '';
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            final += event.results[i][0].transcript + ' ';
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+        
+        const heardText = (final + interim).trim();
+        if (heardText) {
+          voiceTranscript.textContent = `"${heardText}"`;
+        }
+
+        // Match 10-word calibration phrase: "My microphone is working and I am ready to start"
+        const cleanHeard = heardText.toLowerCase();
+        const keyWords = ['microphone', 'working', 'ready', 'start'];
+        const matches = keyWords.filter(word => cleanHeard.includes(word));
+        // Match if they speak at least 2 key calibration words or say at least 7 words overall
+        if (matches.length >= 2 || cleanHeard.split(/\s+/).filter(Boolean).length >= 7) {
+          completeVoiceCheck(true);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Voice check recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          voiceTranscript.innerHTML = `<span style="color: var(--accent-danger);">Microphone permission blocked. Please check your browser address bar permissions or click Skip.</span>`;
+        }
+      };
+
+      recognition.onend = () => {
+        // Auto-restart if not complete
+        if (!isVoiceCheckComplete) {
+          try {
+            recognition.start();
+          } catch(e) {}
+        }
+      };
+
+      try {
+        recognition.start();
+      } catch(e) {
+        console.warn("Failed to start voice check recognition:", e);
+      }
+    }
+
+    function completeVoiceCheck(success, reason = '') {
+      if (isVoiceCheckComplete) return;
+      isVoiceCheckComplete = true;
+
+      // Stop recognition
+      if (recognition) {
+        try {
+          recognition.stop();
+        } catch(e) {}
+      }
+
+      // Stop pulsing waves
+      const waves = document.querySelectorAll('.mic-wave');
+      waves.forEach(w => w.classList.remove('mic-wave-active'));
+
+      if (success) {
+        voiceStatus.textContent = '✅ Ready';
+        voiceStatus.style.color = '#10b981';
+        voiceTranscript.innerHTML = `<span style="color: #10b981; font-weight: 600;">✅ Phrase recognized! Voice verified successfully.</span>`;
+      } else {
+        voiceStatus.textContent = '⚠️ Skipped';
+        voiceStatus.style.color = '#eab308';
+        voiceTranscript.innerHTML = `<span style="color: #eab308;">⚠️ Voice check skipped.</span>`;
+      }
+
+      // Smooth transition to ready panel
+      setTimeout(() => {
+        voicePanel.style.display = 'none';
+        readyPanel.style.display = 'block';
+      }, 1000);
+    }
+
+    skipVoiceBtn.addEventListener('click', () => {
+      completeVoiceCheck(false, 'Skipped');
     });
 
     startBtn.addEventListener('click', () => {
