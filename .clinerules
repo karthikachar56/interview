@@ -1,0 +1,6 @@
+# Workspace Rules for AI Coding Assistants
+
+## Git and Remote Operations
+- **DO NOT** run `git push` or push changes to the remote GitHub repository automatically.
+- All code changes should be kept local. Let the user review and push changes manually when they are ready.
+- Commit commands should only be staged locally or left as uncommitted changes, depending on user instructions.

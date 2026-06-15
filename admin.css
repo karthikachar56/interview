@@ -316,3 +316,127 @@
   50% { transform: scale(1.05); box-shadow: 0 0 50px rgba(139,92,246,0.8); }
   100% { transform: scale(0.95); box-shadow: 0 0 20px rgba(139,92,246,0.5); }
 }
+
+/* High contrast and readability overrides inside the Admin main panel */
+.admin-main {
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --accent-primary: #c084fc; /* Light purple */
+  --accent-secondary: #2dd4bf; /* Light teal */
+}
+
+/* Ensure container panels inside main workspace use light text */
+.admin-main .glass-panel,
+.admin-main .room-panel {
+  color: var(--text-primary);
+}
+
+/* Fix table cell base text */
+.dashboard-table td,
+.dashboard-table td strong,
+.dashboard-table td div {
+  color: var(--text-primary);
+}
+
+/* Highlighted labels and indicators */
+.admin-main label,
+.admin-main .metric-label,
+.admin-main .room-panel-header,
+.admin-main p {
+  color: var(--text-secondary) !important;
+}
+
+.admin-main h2,
+.admin-main h3,
+.admin-main h4 {
+  color: var(--text-primary) !important;
+}
+
+.admin-main .metric-value {
+  color: #38bdf8 !important; /* High contrast sky-blue for metrics */
+}
+
+/* Form fields (Search, textareas, dropdowns) should have white backgrounds and dark text */
+.admin-main input[type="text"],
+.admin-main textarea,
+.admin-main select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(30, 58, 138, 0.45) !important;
+}
+
+.admin-main input[type="text"]::placeholder,
+.admin-main textarea::placeholder {
+  color: #64748b !important;
+}
+
+.admin-main select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Override status badges inside the admin main panel for high readability */
+.admin-main .status-badge {
+  padding: 0.25rem 0.75rem;
+  font-weight: 600;
+}
+
+.admin-main .status-badge.status-active,
+.admin-main .status-badge.status-completed {
+  background: rgba(45, 212, 191, 0.2) !important;
+  color: #2dd4bf !important;
+}
+
+.admin-main .status-badge.status-paused,
+.admin-main .status-badge.status-waiting {
+  background: rgba(251, 191, 36, 0.2) !important;
+  color: #fbbf24 !important;
+}
+
+.admin-main .status-badge.status-in_progress {
+  background: rgba(192, 132, 252, 0.2) !important;
+  color: #c084fc !important;
+}
+
+.admin-main .status-badge.status-escalated {
+  background: rgba(248, 113, 113, 0.2) !important;
+  color: #f87171 !important;
+}
+
+/* Quick rating buttons active styles */
+.admin-main .rating-btn {
+  color: var(--text-primary);
+  border-color: var(--glass-border);
+}
+
+.admin-main .rating-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--text-primary);
+}
+
+.admin-main .rating-btn.active-good {
+  color: #34d399 !important;
+  border-color: #34d399 !important;
+  background: rgba(52, 211, 153, 0.2) !important;
+}
+
+.admin-main .rating-btn.active-bad {
+  color: #f87171 !important;
+  border-color: #f87171 !important;
+  background: rgba(248, 113, 113, 0.2) !important;
+}
+
+.admin-main .rating-btn.active-hard {
+  color: #fbbf24 !important;
+  border-color: #fbbf24 !important;
+  background: rgba(251, 191, 36, 0.2) !important;
+}
+
+/* Ensure student/transcript names in feed stand out */
+.admin-main #voiceTranscriptBox div span {
+  color: var(--text-primary);
+}
+
+.admin-main #voiceTranscriptBox div strong {
+  font-weight: 700;
+}
