@@ -14,7 +14,7 @@
   --glass-bg: rgba(30, 58, 138, 0.85);
   --glass-border: rgba(30, 58, 138, 0.55);
   --glass-blur: blur(16px);
-  --glass-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.3), 0 8px 20px -6px rgba(15, 23, 42, 0.22);
+  --glass-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 10px 25px -8px rgba(0, 0, 0, 0.35);
 
   --font-family: 'Inter', sans-serif;
 }
