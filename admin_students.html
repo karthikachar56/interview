@@ -197,8 +197,10 @@
             <td>${scoreCol}</td>
             <td style="color: var(--text-secondary); font-size: 0.875rem;">${timeStr}</td>
             <td style="display: flex; gap: 0.5rem; align-items: center; border: none;">
-              <a href="/admin_monitor.html?sessionId=${encodeURIComponent(s.sessionId)}" class="btn-primary" style="padding: 0.375rem 0.75rem; font-size: 0.8rem; text-decoration: none;">Observe</a>
-              ${reportBtn}
+              ${s.status === 'completed'
+                ? `<a href="/student_report.html?sessionId=${encodeURIComponent(s.sessionId)}" target="_blank" class="btn-secondary" style="padding: 0.375rem 0.75rem; font-size: 0.8rem; text-decoration: none;">Report</a>`
+                : `<a href="/admin_monitor.html?sessionId=${encodeURIComponent(s.sessionId)}" class="btn-primary" style="padding: 0.375rem 0.75rem; font-size: 0.8rem; text-decoration: none;">Observe</a>`
+              }
             </td>
           `;
           tableBody.appendChild(tr);

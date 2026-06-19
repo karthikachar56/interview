@@ -564,6 +564,7 @@ Provide strengths and improvements based on the candidate's answers and behavior
 
     const updateDoc = {
       status: 'completed',
+      aiStatus: 'completed',
       completedAt: new Date(),
       updatedAt: new Date(),
       transcript,
@@ -1040,11 +1041,18 @@ async function startServer() {
     if (mode !== undefined) updates.mode = mode;
     if (adminMessage !== undefined) updates.adminMessage = adminMessage;
     if (studentAnswer !== undefined) updates.studentAnswer = studentAnswer;
-    if (status !== undefined) updates.status = status;
+    if (status !== undefined) {
+      updates.status = status;
+      if (status === 'completed') {
+        updates.aiStatus = 'completed';
+      }
+    }
     if (aiStatus !== undefined) updates.aiStatus = aiStatus;
     if (round !== undefined) updates.round = round;
     if (score !== undefined) {
       updates.score = score;
+      updates.status = 'completed';
+      updates.aiStatus = 'completed';
       updates.completedAt = new Date();
       updates.feedback = "Admin manually evaluated and completed the interview.";
       updates.strengths = ["Completed supervised interview"];

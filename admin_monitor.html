@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/student.css">
   <link rel="stylesheet" href="/admin.css?v=1.1">
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
   <style>
     .admin-room-wrapper {
       padding: 1.5rem;
@@ -83,8 +84,10 @@
           <div class="room-panel">
             <div class="room-panel-header">Admin AI - Realistic Model Control</div>
             <div class="room-panel-content" style="align-items: center; justify-content: center;">
-              <div class="ai-avatar-placeholder">
-                <div class="ai-orb"></div>
+              <div class="ai-avatar-placeholder" style="background: transparent; width: 100%; height: 220px; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--glass-border);">
+                <div class="ai-avatar" id="aiAvatarRing" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; border-radius: 0.5rem; overflow: hidden;">
+                  <img id="aiAvatarImg" src="/avatar_idle/frame_0.jpg" style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 0.5rem;" alt="AI Interviewer">
+                </div>
               </div>
               <div style="margin-top: 1rem; textAlign: center;">
                 <h3 style="margin: 0; color: var(--text-primary);" id="aiStatusLabel">AI Interviewer is Active</h3>
@@ -402,6 +405,13 @@
                 div.innerHTML = `<strong style="color: ${labelColor}">${label}: </strong> <span>${escapeHTML(msg.text)}</span>`;
                 voiceTranscriptBox.insertBefore(div, transcriptEnd);
               });
+              // Check if a new question was added
+              if (s.transcript.length > renderedMessages.length) {
+                const lastMsg = s.transcript[s.transcript.length - 1];
+                if (lastMsg && (lastMsg.role === 'ai' || lastMsg.role === 'admin')) {
+                  animateAdminAvatarSpeaking(Math.max(2000, lastMsg.text.length * 65));
+                }
+              }
               renderedMessages = s.transcript;
               transcriptEnd.scrollIntoView({ behavior: 'smooth' });
             }
@@ -422,6 +432,7 @@
       if (!question) return;
 
       takeoverQuestion.value = '';
+      animateAdminAvatarSpeaking(Math.max(2000, question.length * 65));
 
       try {
         await fetch('/api/interview/sync', {
@@ -489,8 +500,170 @@
       });
     }
 
+    // 2D Avatar frame animation variables
+    let preloadedIdle = [];
+    let preloadedSpeak = [];
+    let avatarAnimInterval = null;
+    let currentFrameIndex = 0;
+    const TOTAL_FRAMES = 300;
+    const FRAME_INTERVAL_MS = 16; // ~60fps
+    let currentAvatarMode = 'idle';
+
+    const PRELOAD_COUNT = 300; // Preload all 300 frames to run animation fully in-memory with zero network requests during playback
+
+    // Preload first 200 idle and 200 speak frames into Image objects
+    function preloadAvatarFrames() {
+      for (let i = 0; i < TOTAL_FRAMES; i++) {
+        preloadedIdle.push(null);
+        preloadedSpeak.push(null);
+      }
+      
+      startAvatarLoop('idle');
+      
+      let loadIndex = 0;
+      function loadNextBatch() {
+        if (loadIndex >= PRELOAD_COUNT) return;
+        const batchSize = 10;
+        for (let j = 0; j < batchSize && (loadIndex + j) < PRELOAD_COUNT; j++) {
+          const idx = loadIndex + j;
+          
+          const idleImg = new Image();
+          idleImg.onload = () => {
+            preloadedIdle[idx] = idleImg;
+          };
+          idleImg.src = `/avatar_idle/frame_${idx}.jpg`;
+
+          const speakImg = new Image();
+          speakImg.onload = () => {
+            preloadedSpeak[idx] = speakImg;
+          };
+          speakImg.src = `/avatar_speak/frame_${idx}.jpg`;
+        }
+        loadIndex += batchSize;
+        setTimeout(loadNextBatch, 80); // Gentler pacing to avoid blocking browser connection pool
+      }
+      loadNextBatch();
+    }
+
+    function startAvatarLoop(mode, force) {
+      if (!force && mode === currentAvatarMode && avatarAnimInterval) return;
+
+      if (avatarAnimInterval) {
+        clearInterval(avatarAnimInterval);
+        avatarAnimInterval = null;
+      }
+      currentAvatarMode = mode;
+      const avatarImg = document.getElementById('aiAvatarImg');
+      if (!avatarImg) return;
+      
+      avatarAnimInterval = setInterval(() => {
+        const frames = (mode === 'speak') ? preloadedSpeak : preloadedIdle;
+        const cached = frames[currentFrameIndex];
+        if (cached && cached.complete) {
+          avatarImg.src = cached.src;
+        } else {
+          avatarImg.src = (mode === 'speak')
+            ? `/avatar_speak/frame_${currentFrameIndex}.jpg`
+            : `/avatar_idle/frame_${currentFrameIndex}.jpg`;
+        }
+        currentFrameIndex = (currentFrameIndex + 1) % TOTAL_FRAMES;
+      }, FRAME_INTERVAL_MS);
+    }
+
+    let adminSpeakTimeout = null;
+    function animateAdminAvatarSpeaking(duration) {
+      if (adminSpeakTimeout) {
+        clearTimeout(adminSpeakTimeout);
+        adminSpeakTimeout = null;
+      }
+      adminSpeakingState = true;
+      startAvatarLoop('speak');
+      adminSpeakTimeout = setTimeout(() => {
+        adminSpeakingState = false;
+        startAvatarLoop('idle');
+        adminSpeakTimeout = null;
+      }, duration);
+    }
+
+    let socket = null;
+    function initWebSocket() {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsHost = window.location.host || 'localhost:3000';
+      const wsUrl = `${wsProtocol}//${wsHost}/ws`;
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        console.log('Admin WS Connection established');
+        socket.send(JSON.stringify({
+          type: 'register',
+          role: 'admin',
+          id: sessionId
+        }));
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'draft') {
+            handleLiveDraft(message.text);
+          }
+        } catch (err) {
+          console.warn('WS parse error:', err);
+        }
+      };
+
+      socket.onclose = () => {
+        console.warn('Admin WS Connection closed, retrying in 3s...');
+        setTimeout(initWebSocket, 3000);
+      };
+
+      socket.onerror = (err) => {
+        console.error("Admin WS error:", err);
+      };
+    }
+
+    function handleLiveDraft(text) {
+      const trimmed = String(text || '').trim();
+      
+      // Update Latest Answer Text (Col 2)
+      if (trimmed) {
+        latestAnswerText.innerHTML = `<span style="color: var(--accent-primary); font-weight: 500; font-style: italic;">🎙️ Speaking: "${escapeHTML(trimmed)}"</span>`;
+      } else {
+        if (!lastStudentAnswer) {
+          latestAnswerText.innerHTML = `<span style="font-style: italic; opacity: 0.5;">No answers yet...</span>`;
+        } else {
+          latestAnswerText.textContent = lastStudentAnswer;
+        }
+      }
+
+      // Update Transcript Live Draft (Col 1)
+      let draftDiv = document.getElementById('liveSpeechDraftLine');
+      if (trimmed) {
+        waitingSpeechLabel.style.display = 'none';
+        if (!draftDiv) {
+          draftDiv = document.createElement('div');
+          draftDiv.id = 'liveSpeechDraftLine';
+          draftDiv.className = 'transcript-line';
+          draftDiv.style.padding = '0.5rem';
+          draftDiv.style.background = 'rgba(139,92,246,0.1)';
+          draftDiv.style.borderRadius = '0.25rem';
+          draftDiv.style.marginBottom = '0.5rem';
+          draftDiv.style.border = '1px dashed var(--accent-primary)';
+          voiceTranscriptBox.insertBefore(draftDiv, transcriptEnd);
+        }
+        draftDiv.innerHTML = `<strong style="color: var(--accent-primary)">Student (Speaking...): </strong> <span>${escapeHTML(trimmed)}</span>`;
+        transcriptEnd.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        if (draftDiv) {
+          draftDiv.remove();
+        }
+      }
+    }
+
     // Initializations
     initPeer();
+    initWebSocket();
+    preloadAvatarFrames();
     pollSync();
     setInterval(pollSync, 3000);
   </script>

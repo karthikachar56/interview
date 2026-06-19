@@ -268,12 +268,12 @@ p {
 }
 
 .ai-avatar {
-  width: 250px;
-  height: 250px;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
   overflow: hidden;
-  border: 4px solid var(--glass-border);
-  background: var(--bg-color);
+  border: none;
+  background: transparent;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
@@ -310,6 +310,7 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10;
 }
 
 .camera-placeholder {
@@ -487,5 +488,28 @@ p {
 
 .glass-panel .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* High-FPS Organic Lip Sync CSS Animation */
+@keyframes lipSyncOrganic {
+  0% { opacity: 0; }
+  7% { opacity: 0.85; }
+  14% { opacity: 0.15; }
+  21% { opacity: 0.95; }
+  28% { opacity: 0.05; }
+  35% { opacity: 0.75; }
+  42% { opacity: 0.2; }
+  49% { opacity: 0.9; }
+  56% { opacity: 0; }
+  63% { opacity: 0.8; }
+  70% { opacity: 0.1; }
+  77% { opacity: 0.95; }
+  84% { opacity: 0.25; }
+  91% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+.speaking-lip-sync {
+  animation: lipSyncOrganic 1.8s infinite ease-in-out !important;
 }
 

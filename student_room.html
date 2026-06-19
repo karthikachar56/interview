@@ -6,6 +6,7 @@
   <title>AI Mock Interview — Live Room</title>
   <link rel="stylesheet" href="/student.css">
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
 </head>
 <body>
   <div class="room-container">
@@ -47,11 +48,11 @@
       <!-- Center Panel: Avatar & Video Views -->
       <div class="center-panel glass-panel animate-fade-in-up" style="animation-delay: 0.1s;">
         <!-- AI Interviewer Avatar -->
-        <div class="ai-video-container">
-          <div class="ai-avatar" id="aiAvatarRing">
-            <img id="aiAvatarImg" src="https://api.dicebear.com/7.x/bottts/svg?seed=ai-interviewer&backgroundColor=1e1b4b" alt="Interviewer">
+        <div class="ai-video-container" style="width: 100%; height: 100%;">
+          <div class="ai-avatar" id="aiAvatarRing" style="width: 100%; height: 100%; border-radius: 0; border: none; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #0f172a; position: relative;">
+            <img id="aiAvatarImg" src="/avatar_idle/frame_0.jpg" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="AI Interviewer">
           </div>
-          <div class="speaking-indicator" id="interviewerStateLabel">AI Speaking</div>
+          <div class="speaking-indicator" id="interviewerStateLabel" style="position: absolute; top: 1rem; left: 1rem; background: rgba(15, 23, 42, 0.7); color: white; padding: 0.35rem 0.85rem; border-radius: 0.5rem; font-size: 0.85rem; font-weight: 600; z-index: 5; border: 1px solid rgba(255, 255, 255, 0.1);">AI Speaking</div>
         </div>
 
         <!-- Student Self View Camera -->
@@ -123,6 +124,7 @@
     let screenShareOn = false;
     let transcript = [];
     let activeStreamType = 'cam'; // 'cam' or 'screen'
+    let lipInterval = null;
 
     // Streams & Refs
     let localStream = null;
@@ -149,7 +151,15 @@
     const speakingText = document.getElementById('speakingText');
     const interviewerStateLabel = document.getElementById('interviewerStateLabel');
     const aiAvatarRing = document.getElementById('aiAvatarRing');
-    const aiAvatarImg = document.getElementById('aiAvatarImg');
+    // 2D Avatar frame animation variables
+    let preloadedIdle = [];
+    let preloadedSpeak = [];
+    let avatarAnimInterval = null;
+    let currentFrameIndex = 0;
+    let currentAvatarMode = 'idle';     // tracks current frame set so we don't reset on same-mode call
+    let wordLipSyncTimer = null;        // per-word mouth-open timer for exact lip sync
+    const TOTAL_FRAMES = 300;
+    const FRAME_INTERVAL_MS = 16; // ~60fps
     const transcriptBox = document.getElementById('transcriptBox');
     const transcriptEnd = document.getElementById('transcriptEnd');
     const manualInputContainer = document.getElementById('manualInputContainer');
@@ -306,10 +316,10 @@
           const cleanedFinal = cleanTTSBleed(final, currentQuestionText);
           if (cleanedFinal) {
             finalTranscription += cleanedFinal;
-            syncDraft(finalTranscription);
           }
         }
         interimTranscription = cleanTTSBleed(interim, currentQuestionText);
+        syncDraft(finalTranscription + interimTranscription);
         renderTranscriptBubbles();
       };
 
@@ -346,9 +356,10 @@
 
     function speakAndListen(text) {
       isAIActive = true;
-      isRecordingAnswer = false;  // block processing
-      currentQuestionText = text;  // Store current question text for bleed cleanup
-      // DO NOT stop recognition — mic stays always on to prevent startup delays
+      isRecordingAnswer = false;
+      currentQuestionText = text;
+      // Start with idle mouth — onstart will open it precisely when audio begins
+      startAvatarLoop('idle');
       updateIndicatorUI();
 
       if (!('speechSynthesis' in window)) {
@@ -363,12 +374,31 @@
 
       const utterance = new SpeechSynthesisUtterance(text);
       const voices = window.speechSynthesis.getVoices();
-      const usVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) || voices.find(v => v.lang === 'en-US');
+      // Prioritize local English male voices to ensure a zero-latency male interviewer voice
+      const maleIndicators = ['male', 'david', 'daniel', 'alex', 'mark', 'george', 'ravi', 'sean', 'james', 'richard', 'thomas', 'guy'];
+      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+      
+      let chosenVoice = englishVoices.find(v => 
+        v.localService === true && 
+        maleIndicators.some(ind => v.name.toLowerCase().includes(ind))
+      );
+      
+      if (!chosenVoice) {
+        chosenVoice = englishVoices.find(v => 
+          maleIndicators.some(ind => v.name.toLowerCase().includes(ind))
+        );
+      }
+      
+      if (!chosenVoice) {
+        chosenVoice = englishVoices.find(v => v.localService === true);
+      }
+      
+      const usVoice = chosenVoice || englishVoices[0] || voices[0];
       if (usVoice) utterance.voice = usVoice;
-      utterance.rate = 1.0;
+      utterance.rate = 0.88; // Slightly slower speaking rate for better clarity
       utterance.pitch = 1.0;
 
-      // GC guard
+      // GC guard — prevents Chrome GC from destroying utterance mid-speech
       currentUtterance = utterance;
       _ttsGcGuard.push(utterance);
       if (_ttsGcGuard.length > 5) _ttsGcGuard.shift();
@@ -376,21 +406,26 @@
       let done = false;
       let boundaryTimer = null;
       let fallbackTimer = null;
+      let boundaryEverFired = false;
+      let lastBoundaryTime = 0; // track timing between word boundaries for pause detection
 
+      // ── Helper: clean up lip sync state ──────────────────────────────────
+      function cleanupLipSync() {
+        if (wordLipSyncTimer) { clearTimeout(wordLipSyncTimer); wordLipSyncTimer = null; }
+        startAvatarLoop('idle');
+      }
+
+      // ── Transition out of AI speaking state ──────────────────────────────
       const activate = (force = false) => {
         if (done) return;
-        
-        // If TTS is still actively speaking or queued, check again in 200ms
-        // Bypass this check if the fallback timer forces the transition (to recover from Chrome speech hangs)
         if (!force && window.speechSynthesis.speaking) {
           setTimeout(() => activate(false), 200);
           return;
         }
-        
         done = true;
         if (boundaryTimer) clearTimeout(boundaryTimer);
         if (fallbackTimer) clearTimeout(fallbackTimer);
-        
+        cleanupLipSync();
         isAIActive = false;
         updateIndicatorUI();
         if (text.includes("concludes our interview questions") || questionNum > totalQuestions) {
@@ -400,17 +435,86 @@
         }
       };
 
-      // Layer 1: onend (instant when Chrome cooperates)
+      // Layer 1: onstart — opens mouth precisely when TTS audio begins
+      let onstartFired = false;
+      utterance.onstart = () => {
+        if (onstartFired) return;
+        onstartFired = true;
+        startAvatarLoop('speak');
+        lastBoundaryTime = performance.now();
+      };
+
+      // Safety fallback if onstart is delayed/unsupported
+      setTimeout(() => {
+        if (!onstartFired && isAIActive && !done) {
+          onstartFired = true;
+          startAvatarLoop('speak');
+          lastBoundaryTime = performance.now();
+        }
+      }, 300);
+
       utterance.onend   = () => activate(true);
       utterance.onerror = () => activate(true);
 
-      // Layer 2: onboundary rolling timer (immune to GC — fires per word)
-      utterance.onboundary = () => {
+      // ── Word-boundary lip sync ─────────────────────────────────────────
+      // Strategy: keep mouth OPEN (speak mode) during continuous speech.
+      // Only briefly close mouth (idle) when a natural pause is detected
+      // (gap > 200ms between word boundaries, e.g. comma/period pauses).
+      // This creates smooth, natural lip movement synced to every question.
+      utterance.onboundary = (event) => {
+        boundaryEverFired = true;
+
+        if (event.name === 'word') {
+          const now = performance.now();
+          const gap = now - lastBoundaryTime;
+          lastBoundaryTime = now;
+
+          // If there was a noticeable pause (punctuation, breath), do a brief mouth close
+          if (gap > 200 && currentAvatarMode === 'speak') {
+            // Brief close for the pause, then reopen
+            startAvatarLoop('idle');
+            if (wordLipSyncTimer) clearTimeout(wordLipSyncTimer);
+            wordLipSyncTimer = setTimeout(() => {
+              if (!done && isAIActive) {
+                startAvatarLoop('speak');
+              }
+              wordLipSyncTimer = null;
+            }, 80); // very brief close — just enough to simulate a natural pause
+          } else {
+            // Continuous speech — keep mouth open
+            if (currentAvatarMode !== 'speak') {
+              startAvatarLoop('speak');
+            }
+            // Cancel any pending close timer
+            if (wordLipSyncTimer) { clearTimeout(wordLipSyncTimer); wordLipSyncTimer = null; }
+          }
+
+          // Set a close timer in case no more boundaries fire (end of sentence)
+          wordLipSyncTimer = setTimeout(() => {
+            if (!done && isAIActive && window.speechSynthesis.speaking) {
+              // Still speaking but no new word boundary — keep mouth open
+              // (the TTS engine might be on a long word)
+            } else if (!done && isAIActive) {
+              startAvatarLoop('idle');
+            }
+            wordLipSyncTimer = null;
+          }, 500);
+        }
+
+        // ── Rolling activation timer (speech-end detection) ──
+        // Increased from 350ms to 800ms to prevent premature end detection
         if (boundaryTimer) clearTimeout(boundaryTimer);
-        boundaryTimer = setTimeout(() => activate(true), 350);
+        boundaryTimer = setTimeout(() => activate(true), 800);
       };
 
-      // Layer 3: char-count timer — primary reliable fallback (forces transition if Chrome hangs)
+      // Fallback: if onboundary never fires (some browsers), run continuous speak loop
+      setTimeout(() => {
+        if (!boundaryEverFired && isAIActive && !done) {
+          startAvatarLoop('speak');
+        }
+      }, 900);
+
+      // Layer 3: char-count hard fallback (recovers from Chrome speech hangs)
       const speechMs = Math.max(1500, text.length * 65);
       fallbackTimer = setTimeout(() => activate(true), speechMs + 500);
 
@@ -433,6 +537,8 @@
 
     function updateIndicatorUI() {
       if (isAIActive) {
+        // Do NOT reset mouth here — let TTS onstart/onboundary events control lip sync
+        // The avatar mode is managed by speakAndListen() directly
         aiSpeakingIndicator.style.display = 'flex';
         candidateListeningIndicator.style.display = 'none';
         clearAnsweringTimer();
@@ -445,6 +551,7 @@
         actionBtn.style.background = 'var(--accent-secondary)';
         actionBtn.innerHTML = '🛑 Stop AI & Speak';
       } else if (isRecordingAnswer) {
+        startAvatarLoop('idle');
         aiSpeakingIndicator.style.display = 'none';
         candidateListeningIndicator.style.display = 'flex';
         interviewerStateLabel.textContent = "Listening...";
@@ -456,6 +563,7 @@
         
         manualInputContainer.style.display = 'block';
       } else {
+        startAvatarLoop('idle');
         aiSpeakingIndicator.style.display = 'none';
         candidateListeningIndicator.style.display = 'none';
         clearAnsweringTimer();
@@ -467,6 +575,67 @@
       }
     }
 
+    const PRELOAD_COUNT = 300; // Preload all 300 frames to run animation fully in-memory with zero network requests during playback
+
+    // Preload first 200 idle and 200 speak frames into Image objects
+    function preloadAvatarFrames() {
+      for (let i = 0; i < TOTAL_FRAMES; i++) {
+        preloadedIdle.push(null);
+        preloadedSpeak.push(null);
+      }
+      
+      startAvatarLoop('idle');
+      
+      let loadIndex = 0;
+      function loadNextBatch() {
+        if (loadIndex >= PRELOAD_COUNT) return;
+        const batchSize = 10;
+        for (let j = 0; j < batchSize && (loadIndex + j) < PRELOAD_COUNT; j++) {
+          const idx = loadIndex + j;
+          
+          const idleImg = new Image();
+          idleImg.onload = () => {
+            preloadedIdle[idx] = idleImg;
+          };
+          idleImg.src = `/avatar_idle/frame_${idx}.jpg`;
+
+          const speakImg = new Image();
+          speakImg.onload = () => {
+            preloadedSpeak[idx] = speakImg;
+          };
+          speakImg.src = `/avatar_speak/frame_${idx}.jpg`;
+        }
+        loadIndex += batchSize;
+        setTimeout(loadNextBatch, 80); // Gentler pacing to avoid blocking browser connection pool
+      }
+      loadNextBatch();
+    }
+
+    function startAvatarLoop(mode, force) {
+      // Allow forced re-entry for the same mode (needed for lip sync toggle back)
+      if (!force && mode === currentAvatarMode && avatarAnimInterval) return;
+
+      if (avatarAnimInterval) {
+        clearInterval(avatarAnimInterval);
+        avatarAnimInterval = null;
+      }
+      currentAvatarMode = mode;
+      const avatarImg = document.getElementById('aiAvatarImg');
+      if (!avatarImg) return;
+      
+      avatarAnimInterval = setInterval(() => {
+        const frames = (mode === 'speak') ? preloadedSpeak : preloadedIdle;
+        const cached = frames[currentFrameIndex];
+        if (cached && cached.complete) {
+          avatarImg.src = cached.src;
+        } else {
+          avatarImg.src = (mode === 'speak')
+            ? `/avatar_speak/frame_${currentFrameIndex}.jpg`
+            : `/avatar_idle/frame_${currentFrameIndex}.jpg`;
+        }
+        currentFrameIndex = (currentFrameIndex + 1) % TOTAL_FRAMES;
+      }, FRAME_INTERVAL_MS);
+    }
     function renderTranscriptBubbles() {
       // Clear all dynamic bubbles, keeping only completed ones plus the live bubble if recording
       const bubbles = transcriptBox.querySelectorAll('.chat-bubble');
@@ -521,6 +690,7 @@
       transcript.push({ role: 'student', text: studentAnswer });
       finalTranscription = '';
       interimTranscription = '';
+      syncDraft("");
       renderTranscriptBubbles();
 
       if (adminMode) {
@@ -550,8 +720,12 @@
           questionNum++;
           questionNumBadge.textContent = `Question ${questionNum}`;
           
-          // Start speaking the next question immediately
-          speakAndListen(data.question);
+          // Start speaking the next question after a brief delay (1.5s) to slow down transition pace
+          setTimeout(() => {
+            if (!isEnding) {
+              speakAndListen(data.question);
+            }
+          }, 1500);
 
           // Run evaluation in the background during AI speech to avoid latency
           const prevAIIndex = transcript.length - 3;
@@ -790,7 +964,6 @@
           adminMode = data.session.mode === 'admin';
           if (adminMode) {
             adminTakeoverAlert.style.display = 'block';
-            aiAvatarImg.src = "https://api.dicebear.com/7.x/bottts/svg?seed=admin&backgroundColor=ef4444";
             
             if (data.session.adminMessage && data.session.adminMessage !== lastAdminMessage) {
               lastAdminMessage = data.session.adminMessage;
@@ -800,7 +973,6 @@
             }
           } else {
             adminTakeoverAlert.style.display = 'none';
-            aiAvatarImg.src = "https://api.dicebear.com/7.x/bottts/svg?seed=ai-interviewer&backgroundColor=1e1b4b";
           }
           updateIndicatorUI();
         }
@@ -827,7 +999,12 @@
         questionText.textContent = data.question;
         transcript.push({ role: 'ai', text: data.question });
         renderTranscriptBubbles();
-        speakAndListen(data.question);
+        // Start speaking first question after a brief delay (1.5s)
+        setTimeout(() => {
+          if (!isEnding) {
+            speakAndListen(data.question);
+          }
+        }, 1500);
       } catch (err) {
         console.error("Failed to start session:", err);
         questionText.textContent = "Could not load question. Please reload.";
@@ -903,6 +1080,9 @@
       
       // Stop speech recognition when manual typing starts
       safeStopRecognition();
+      
+      // Sync manual typing draft
+      syncDraft(manualInput.value);
     });
 
     // Execute Initializations
@@ -911,6 +1091,7 @@
     };
     
     initWebSocket();
+    preloadAvatarFrames();
     initMedia().then(() => {
       initSpeechRecognition();
       startInterview();

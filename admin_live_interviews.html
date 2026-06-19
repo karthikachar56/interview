@@ -143,9 +143,10 @@
               </td>
               <td>${timeStr}</td>
               <td>
-                <a href="/admin_monitor.html?sessionId=${encodeURIComponent(session.sessionId)}" class="btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
-                  Observe
-                </a>
+                ${session.status === 'completed'
+                  ? `<a href="/student_report.html?sessionId=${encodeURIComponent(session.sessionId)}" target="_blank" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem; text-decoration: none;">Report</a>`
+                  : `<a href="/admin_monitor.html?sessionId=${encodeURIComponent(session.sessionId)}" class="btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Observe</a>`
+                }
               </td>
             `;
             tableBody.appendChild(tr);

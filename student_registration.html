@@ -171,10 +171,10 @@
     const submitBtn = document.getElementById('submitBtn');
     const errorBox = document.getElementById('errorBox');
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
       submitBtn.disabled = true;
-      submitBtn.textContent = '⏳ Registering...';
+      submitBtn.textContent = '⏳ Processing...';
       errorBox.style.display = 'none';
 
       const payload = {
@@ -185,37 +185,22 @@
         year: document.getElementById('year').value
       };
 
-      try {
-        const response = await fetch('/api/student/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.sessionId) {
-          // Store details in localStorage
-          localStorage.setItem('currentSessionId', data.sessionId);
-          localStorage.setItem('studentName', payload.studentName);
-          localStorage.setItem('studentUsn', payload.usn);
-          localStorage.setItem('studentCollege', payload.college);
-          localStorage.setItem('studentBranch', payload.branch);
-          localStorage.setItem('studentYear', payload.year);
-
-          window.location.href = '/student_introduction.html';
-        } else {
-          errorBox.textContent = '⚠️ ' + (data.error || 'Failed to register. Please try again.');
-          errorBox.style.display = 'block';
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Proceed to Setup →';
-        }
-      } catch (err) {
-        errorBox.textContent = '⚠️ Network error. Please check your connection.';
+      if (!payload.studentName || !payload.usn) {
+        errorBox.textContent = '⚠️ Full Name and USN are required.';
         errorBox.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.textContent = 'Proceed to Setup →';
+        return;
       }
+
+      // Store details in localStorage
+      localStorage.setItem('studentName', payload.studentName);
+      localStorage.setItem('studentUsn', payload.usn);
+      localStorage.setItem('studentCollege', payload.college);
+      localStorage.setItem('studentBranch', payload.branch);
+      localStorage.setItem('studentYear', payload.year);
+
+      window.location.href = '/student_introduction.html';
     });
   </script>
 </body>
