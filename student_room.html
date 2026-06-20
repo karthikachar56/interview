@@ -157,9 +157,12 @@
     let avatarAnimInterval = null;
     let currentFrameIndex = 0;
     let currentAvatarMode = 'idle';     // tracks current frame set so we don't reset on same-mode call
+    let targetAvatarMode = 'idle';      // tracks the desired mode for smooth transitions
     let wordLipSyncTimer = null;        // per-word mouth-open timer for exact lip sync
+    let maxLoadedFrame = 9;             // tracks the highest contiguously loaded frame index
+    let mouthOffset = 0;                // offset to sync mouth cycle phase to start of words
     const TOTAL_FRAMES = 300;
-    const FRAME_INTERVAL_MS = 16; // ~60fps
+    const FRAME_INTERVAL_MS = 33; // ~30fps
     const transcriptBox = document.getElementById('transcriptBox');
     const transcriptEnd = document.getElementById('transcriptEnd');
     const manualInputContainer = document.getElementById('manualInputContainer');
@@ -461,52 +464,45 @@
       utterance.onerror = () => activate(true);
 
       // ── Word-boundary lip sync ─────────────────────────────────────────
-      // Strategy: keep mouth OPEN (speak mode) during continuous speech.
-      // Only briefly close mouth (idle) when a natural pause is detected
-      // (gap > 200ms between word boundaries, e.g. comma/period pauses).
-      // This creates smooth, natural lip movement synced to every question.
+      // Strategy: Extract the exact word being spoken using the event.charIndex.
+      // Activate the 'speak' (talking mouth) animation immediately when the word starts,
+      // and automatically close the mouth (switch to 'idle') after the calculated duration
+      // of that specific word based on its character length.
       utterance.onboundary = (event) => {
         boundaryEverFired = true;
 
         if (event.name === 'word') {
-          const now = performance.now();
-          const gap = now - lastBoundaryTime;
-          lastBoundaryTime = now;
+          // Extract the word that is currently being spoken
+          const remainingText = text.slice(event.charIndex);
+          const nextSpaceIdx = remainingText.search(/[\s,.:;?!\-\(\)]/);
+          const word = nextSpaceIdx === -1 ? remainingText : remainingText.slice(0, nextSpaceIdx);
+          const wordLength = word ? word.trim().length : 5;
+          
+          // Estimate word duration (approx 85ms per character, min 160ms, max 500ms)
+          // Adjusted for the slightly slower speaking rate of 0.88
+          const wordDuration = Math.min(500, Math.max(160, wordLength * 85));
 
-          // If there was a noticeable pause (punctuation, breath), do a brief mouth close
-          if (gap > 200 && currentAvatarMode === 'speak') {
-            // Brief close for the pause, then reopen
-            startAvatarLoop('idle');
-            if (wordLipSyncTimer) clearTimeout(wordLipSyncTimer);
-            wordLipSyncTimer = setTimeout(() => {
-              if (!done && isAIActive) {
-                startAvatarLoop('speak');
-              }
-              wordLipSyncTimer = null;
-            }, 80); // very brief close — just enough to simulate a natural pause
-          } else {
-            // Continuous speech — keep mouth open
-            if (currentAvatarMode !== 'speak') {
-              startAvatarLoop('speak');
-            }
-            // Cancel any pending close timer
-            if (wordLipSyncTimer) { clearTimeout(wordLipSyncTimer); wordLipSyncTimer = null; }
+          // Open mouth and start chattering. Transition to speak mode if not already active.
+          if (currentAvatarMode !== 'speak') {
+            startAvatarLoop('speak');
           }
 
-          // Set a close timer in case no more boundaries fire (end of sentence)
+          // Clear any existing mouth-close timer
+          if (wordLipSyncTimer) {
+            clearTimeout(wordLipSyncTimer);
+            wordLipSyncTimer = null;
+          }
+
+          // Schedule the mouth to close after the word's duration is complete
           wordLipSyncTimer = setTimeout(() => {
-            if (!done && isAIActive && window.speechSynthesis.speaking) {
-              // Still speaking but no new word boundary — keep mouth open
-              // (the TTS engine might be on a long word)
-            } else if (!done && isAIActive) {
+            if (!done && isAIActive) {
               startAvatarLoop('idle');
             }
             wordLipSyncTimer = null;
-          }, 500);
+          }, wordDuration);
         }
 
         // ── Rolling activation timer (speech-end detection) ──
-        // Increased from 350ms to 800ms to prevent premature end detection
         if (boundaryTimer) clearTimeout(boundaryTimer);
         boundaryTimer = setTimeout(() => activate(true), 800);
       };
@@ -579,9 +575,18 @@
       }
     }
 
-    const PRELOAD_COUNT = 300; // Preload all 300 frames to run animation fully in-memory with zero network requests during playback
+    function updateMaxLoaded(idx) {
+      if (preloadedIdle[idx] && preloadedSpeak[idx]) {
+        // Sequentially scan ahead to see how many frames are fully loaded
+        while (maxLoadedFrame + 1 < TOTAL_FRAMES && preloadedIdle[maxLoadedFrame + 1] && preloadedSpeak[maxLoadedFrame + 1]) {
+          maxLoadedFrame++;
+        }
+      }
+    }
 
-    // Preload first 200 idle and 200 speak frames into Image objects
+    const PRELOAD_COUNT = 300; // Preload all 300 frames in background to run animation 100% locally from cache
+
+    // Preload first 300 idle and 300 speak frames into Image objects
     function preloadAvatarFrames() {
       for (let i = 0; i < TOTAL_FRAMES; i++) {
         preloadedIdle.push(null);
@@ -593,49 +598,77 @@
       let loadIndex = 0;
       function loadNextBatch() {
         if (loadIndex >= PRELOAD_COUNT) return;
-        const batchSize = 10;
+        const batchSize = 2;
         for (let j = 0; j < batchSize && (loadIndex + j) < PRELOAD_COUNT; j++) {
           const idx = loadIndex + j;
           
           const idleImg = new Image();
           idleImg.onload = () => {
             preloadedIdle[idx] = idleImg;
+            updateMaxLoaded(idx);
           };
           idleImg.src = `/avatar_idle/frame_${idx}.jpg`;
 
           const speakImg = new Image();
           speakImg.onload = () => {
             preloadedSpeak[idx] = speakImg;
+            updateMaxLoaded(idx);
           };
           speakImg.src = `/avatar_speak/frame_${idx}.jpg`;
         }
         loadIndex += batchSize;
-        setTimeout(loadNextBatch, 80); // Gentler pacing to avoid blocking browser connection pool
+        setTimeout(loadNextBatch, 300); // Gentler pacing to avoid blocking browser connection pool
       }
       loadNextBatch();
     }
 
-    function startAvatarLoop(mode, force) {
-      // Allow forced re-entry for the same mode (needed for lip sync toggle back)
-      if (!force && mode === currentAvatarMode && avatarAnimInterval) return;
-
-      if (avatarAnimInterval) {
-        clearInterval(avatarAnimInterval);
-        avatarAnimInterval = null;
+    function startAvatarLoop(mode) {
+      targetAvatarMode = mode;
+      
+      // If transitioning from idle to speak, perform an instant mouth-opening transition
+      if (mode === 'speak' && currentAvatarMode === 'idle') {
+        currentAvatarMode = 'speak';
+        // Align mouthOffset so that the next frame starts at phase 9 (almost closed, about to open)
+        mouthOffset = (9 - (currentFrameIndex % 10) + 10) % 10;
       }
-      currentAvatarMode = mode;
+      
+      // If the interval is already running, just update the target mode and return
+      if (avatarAnimInterval) return;
+      
       const avatarImg = document.getElementById('aiAvatarImg');
       if (!avatarImg) return;
       
       avatarAnimInterval = setInterval(() => {
-        const frames = (mode === 'speak') ? preloadedSpeak : preloadedIdle;
-        const cached = frames[currentFrameIndex];
-        if (cached && cached.complete) {
+        // Apply mouthOffset only when in speak mode to align lip cycles to word starts
+        const indexToUse = currentAvatarMode === 'speak' ? (currentFrameIndex + mouthOffset) : currentFrameIndex;
+
+        // Safe limit based on contiguously loaded frames (minimum 10 frames)
+        // Ensure limit is always a multiple of 10 to avoid phase jump glitches on wrap-around!
+        const limit = Math.max(10, Math.floor((maxLoadedFrame + 1) / 10) * 10);
+        const frameIdx = indexToUse % limit;
+
+        // Transition from speak to idle smoothly when the mouth is closed (phase 7, 8, or 9)
+        if (currentAvatarMode !== targetAvatarMode) {
+          if (targetAvatarMode === 'idle' && currentAvatarMode === 'speak') {
+            const phase = frameIdx % 10;
+            if (phase === 7 || phase === 8 || phase === 9) {
+              currentAvatarMode = 'idle';
+            }
+          } else if (targetAvatarMode === 'speak' && currentAvatarMode === 'idle') {
+            // Fallback transition
+            currentAvatarMode = 'speak';
+            mouthOffset = (9 - (currentFrameIndex % 10) + 10) % 10;
+          }
+        }
+
+        const frames = (currentAvatarMode === 'speak') ? preloadedSpeak : preloadedIdle;
+        const cached = frames[frameIdx];
+        if (cached) {
           avatarImg.src = cached.src;
         } else {
-          avatarImg.src = (mode === 'speak')
-            ? `/avatar_speak/frame_${currentFrameIndex}.jpg`
-            : `/avatar_idle/frame_${currentFrameIndex}.jpg`;
+          avatarImg.src = (currentAvatarMode === 'speak')
+            ? `/avatar_speak/frame_${frameIdx}.jpg`
+            : `/avatar_idle/frame_${frameIdx}.jpg`;
         }
         currentFrameIndex = (currentFrameIndex + 1) % TOTAL_FRAMES;
       }, FRAME_INTERVAL_MS);
@@ -1023,6 +1056,10 @@
         questionText.textContent = data.question;
         transcript.push({ role: 'ai', text: data.question });
         renderTranscriptBubbles();
+        
+        // Start preloading avatar frames now that critical API call has completed
+        preloadAvatarFrames();
+
         // Start speaking first question after a brief delay (1.5s)
         setTimeout(() => {
           if (!isEnding) {
@@ -1032,6 +1069,7 @@
       } catch (err) {
         console.error("Failed to start session:", err);
         questionText.textContent = "Could not load question. Please reload.";
+        preloadAvatarFrames(); // Fallback start preloading
       }
     }
 
@@ -1115,7 +1153,6 @@
     };
     
     initWebSocket();
-    preloadAvatarFrames();
     initMedia();
     initSpeechRecognition();
     startInterview();

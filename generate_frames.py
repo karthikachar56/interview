@@ -42,12 +42,15 @@ def get_speech_weight(frame_idx, num_frames=3200):
     Generate speech weight for speak frames.
     Instead of baking in pauses (which conflicts with real-time JS word boundary lip-sync),
     we generate a continuous articulating chatter.
-    For 60fps (3200 frames), we use a cycle of 20 frames (333ms) to match natural syllable articulation,
-    oscillating between 0.15 (almost closed) and 0.90 (wide open).
+    For 300 frames, we use a multi-frequency organic oscillation (cycle of 10 and 6 frames)
+    for natural syllable variation. Both divide 300 perfectly, so looping is 100% seamless.
     """
     i = frame_idx
-    cycle = 20 if num_frames == 3200 else 10
-    w = 0.525 + 0.375 * np.sin(2 * np.pi * i / cycle)
+    if num_frames == 300:
+        w = 0.45 + 0.25 * np.sin(2 * np.pi * i / 10) + 0.15 * np.sin(2 * np.pi * i / 6)
+    else:
+        cycle = 20 if num_frames == 3200 else 10
+        w = 0.525 + 0.375 * np.sin(2 * np.pi * i / cycle)
     return clip_weight(w)
 
 
@@ -150,8 +153,7 @@ def generate_animation_frames():
     mask_feathered = np.expand_dims(mask_feathered, axis=2)
 
     # ── Mouth mask (isolated mouth blending, prevents overall face blurring) ──
-    # Center and size calculated from find_mouth_mask.py analysis: Center=(556, 589), width=146, height=179
-    # Add safety margin and feather to blend seamlessly
+    # Center is (556, 589). We restore the large mask size to cover the entire mouth, lips, and chin movement.
     mouth_mask = np.zeros((height, width), dtype=np.float32)
     cv2.ellipse(mouth_mask, (556, 589), (88, 99), 0, 0, 360, 255, -1)
     mouth_mask_feathered = cv2.GaussianBlur(mouth_mask, (31, 31), 0) / 255.0
@@ -161,12 +163,32 @@ def generate_animation_frames():
 
     print(f"Generating {num_frames} frames (idle + speak) with crisp motion & local lip sync...")
 
-    # Crop mouth region for 30x faster blending speed
-    ymin, ymax = 500, 679
-    xmin, xmax = 483, 629
+    # Crop mouth region (expanded coordinates so the large mouth mask fades to exactly 0 at the crop edges)
+    ymin, ymax = 449, 729
+    xmin, xmax = 426, 686
     crop_closed = img_closed[ymin:ymax, xmin:xmax].astype(np.float32)
     crop_open = img_aligned_open[ymin:ymax, xmin:xmax].astype(np.float32)
     crop_mask = mouth_mask_3d[ymin:ymax, xmin:xmax]
+
+    print("Computing dense optical flow for high-precision mouth morphing...")
+    gray_closed = cv2.cvtColor(crop_closed.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    gray_open = cv2.cvtColor(crop_open.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+
+    flow_to_open = cv2.calcOpticalFlowFarneback(
+        gray_closed, gray_open, None,
+        pyr_scale=0.5, levels=5, winsize=13,
+        iterations=10, poly_n=5, poly_sigma=1.1, flags=0
+    )
+    flow_to_closed = cv2.calcOpticalFlowFarneback(
+        gray_open, gray_closed, None,
+        pyr_scale=0.5, levels=5, winsize=13,
+        iterations=10, poly_n=5, poly_sigma=1.1, flags=0
+    )
+
+    h_crop, w_crop = crop_closed.shape[:2]
+    grid_x, grid_y = np.meshgrid(np.arange(w_crop), np.arange(h_crop))
+    grid_x = grid_x.astype(np.float32)
+    grid_y = grid_y.astype(np.float32)
 
     for i in range(num_frames):
         dx, dy, angle = get_idle_transform(i, num_frames)
@@ -194,8 +216,20 @@ def generate_animation_frames():
 
         # ── SPEAK frame ───────────────────────────────────────────────────────
         w = get_speech_weight(i, num_frames)
-        # Blend ONLY the mouth crop (fast, precise)
-        crop_blended = crop_closed * (1.0 - crop_mask * w) + crop_open * (crop_mask * w)
+        # Warp crops forward and backward using dense optical flow maps
+        map1_x = grid_x - w * flow_to_open[..., 0]
+        map1_y = grid_y - w * flow_to_open[..., 1]
+        warped_closed_crop = cv2.remap(crop_closed, map1_x, map1_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+
+        map2_x = grid_x - (1.0 - w) * flow_to_closed[..., 0]
+        map2_y = grid_y - (1.0 - w) * flow_to_closed[..., 1]
+        warped_open_crop = cv2.remap(crop_open, map2_x, map2_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+
+        # Blend perfectly aligned morphed mouth shapes
+        morphed_combination = warped_closed_crop * (1.0 - w) + warped_open_crop * w
+        
+        # Feather blend morphed mouth back onto the static base face using the mouth mask
+        crop_blended = crop_closed * (1.0 - crop_mask) + morphed_combination * crop_mask
         blended = img_closed.copy()
         blended[ymin:ymax, xmin:xmax] = crop_blended.astype(np.uint8)
 
