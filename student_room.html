@@ -334,8 +334,8 @@
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             hasPermissionError = true;
           }
-          // Restart if it crashes or drops (and no permission error)
-          if (!isEnding && micOn && !hasPermissionError) {
+          // Restart if it crashes or drops (and no permission error and candidate is actively answering)
+          if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer) {
             setTimeout(() => {
               safeStartRecognition();
             }, 1000);
@@ -344,14 +344,11 @@
 
         recognition.onend = () => {
           isRecognitionRunning = false;
-          // Restart mic continuously to keep it warm
-          if (!isEnding && micOn && !hasPermissionError) {
+          // Restart mic continuously to keep it warm only if the candidate is actively answering
+          if (!isEnding && micOn && !hasPermissionError && isRecordingAnswer) {
             safeStartRecognition();
           }
         };
-
-        // Start immediately — mic is always on
-        try { recognition.start(); } catch(e){}
       } catch (err) {
         console.warn("Speech Recognition initialization failed (potentially blocked by iframe sandbox or permission policy):", err);
       }
@@ -365,6 +362,10 @@
       isAIActive = true;
       isRecordingAnswer = false;
       currentQuestionText = text;
+      
+      // Stop recognition while AI is speaking to prevent Chrome speech session timeouts
+      safeStopRecognition();
+
       // Start with idle mouth — onstart will open it precisely when audio begins
       startAvatarLoop('idle');
       updateIndicatorUI();
@@ -706,6 +707,9 @@
     // Auto-Submit Logic
     async function handleAutoSubmit(forceSubmit = false) {
       if (!isRecordingAnswer) return;
+
+      // Stop recognition immediately upon submit
+      safeStopRecognition();
 
       const typedAnswer = manualInput.value.trim();
       const spokenAnswer = (finalTranscription + ' ' + interimTranscription).trim();
