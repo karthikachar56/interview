@@ -1,20 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-color: #ffffff;
-  --bg-gradient: radial-gradient(circle at 50% -20%, #f5f3ff 0%, #ffffff 80%);
-  --text-primary: #000000; /* Pure Black */
-  --text-secondary: #000000; /* Pure Black */
+  --bg-color: #f8fafc; /* Slate 50 */
+  --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #f8fafc 100%);
+  --text-primary: #0f172a; /* Slate 900 */
+  --text-secondary: #475569; /* Slate 600 */
   
-  --accent-primary: #8b5cf6; /* Violet 500 */
+  --accent-primary: #2563eb; /* Corporate Blue 600 */
   --accent-secondary: #0d9488; /* Teal 600 */
-  --accent-hover: #7c3aed; /* Violet 600 */
-  --accent-danger: #ef4444; /* Red 500 */
+  --accent-hover: #1d4ed8; /* Blue 700 */
+  --accent-danger: #dc2626; /* Red 600 */
   
-  --glass-bg: rgba(30, 58, 138, 0.85);
-  --glass-border: rgba(30, 58, 138, 0.55);
-  --glass-blur: blur(16px);
-  --glass-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 10px 25px -8px rgba(0, 0, 0, 0.35);
+  --glass-bg: rgba(255, 255, 255, 0.85); /* Clean white panel */
+  --glass-border: rgba(226, 232, 240, 0.8); /* Soft slate border */
+  --glass-blur: blur(12px);
+  --glass-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.05), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
 
   --font-family: 'Inter', sans-serif;
 }
@@ -427,7 +427,7 @@ p {
   cursor: not-allowed;
 }
 
-/* High-contrast and readable styling inside dark glass panels */
+/* High-contrast and readable styling inside light glass panels */
 .glass-panel h1,
 .glass-panel h2,
 .glass-panel h3,
@@ -435,59 +435,59 @@ p {
 .glass-panel h5,
 .glass-panel h6,
 .glass-panel .question-text {
-  color: #ffffff !important;
+  color: var(--text-primary) !important;
 }
 
 .glass-panel p,
 .glass-panel span.text-secondary,
 .glass-panel p.text-secondary,
 .glass-panel .text-secondary {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: var(--text-secondary) !important;
 }
 
 .glass-panel label {
-  color: rgba(255, 255, 255, 0.95) !important;
+  color: var(--text-primary) !important;
 }
 
 .glass-panel .input-field {
   background: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid rgba(30, 58, 138, 0.45) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
 }
 
 .glass-panel .input-field::placeholder {
-  color: #64748b !important;
+  color: #94a3b8 !important;
 }
 
 .glass-panel select.input-field option {
   background-color: #ffffff !important;
-  color: #0f172a !important;
+  color: var(--text-primary) !important;
 }
 
 .glass-panel .chat-bubble {
-  background: rgba(255, 255, 255, 0.15) !important;
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(15, 23, 42, 0.02) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid rgba(15, 23, 42, 0.05) !important;
 }
 
 .glass-panel .chat-bubble.ai {
-  border-left: 3px solid #00f2fe !important;
-  background: rgba(0, 242, 254, 0.15) !important;
+  border-left: 3px solid var(--accent-secondary) !important;
+  background: rgba(13, 148, 136, 0.06) !important;
 }
 
 .glass-panel .chat-bubble.student {
-  border-right: 3px solid #60a5fa !important;
-  background: rgba(96, 165, 250, 0.15) !important;
+  border-right: 3px solid var(--accent-primary) !important;
+  background: rgba(37, 99, 235, 0.06) !important;
 }
 
 .glass-panel .btn-secondary {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  color: #ffffff !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  color: var(--text-primary) !important;
 }
 
 .glass-panel .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.3) !important;
+  background: rgba(15, 23, 42, 0.04) !important;
 }
 
 /* High-FPS Organic Lip Sync CSS Animation */

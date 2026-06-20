@@ -506,12 +506,12 @@
     let avatarAnimInterval = null;
     let currentFrameIndex = 0;
     const TOTAL_FRAMES = 300;
-    const FRAME_INTERVAL_MS = 16; // ~60fps
+    const FRAME_INTERVAL_MS = 33; // ~30fps
     let currentAvatarMode = 'idle';
 
-    const PRELOAD_COUNT = 300; // Preload all 300 frames to run animation fully in-memory with zero network requests during playback
+    const PRELOAD_COUNT = 300; // Preload all 300 frames in background to run animation 100% locally from cache
 
-    // Preload first 200 idle and 200 speak frames into Image objects
+    // Preload first 300 idle and 300 speak frames into Image objects
     function preloadAvatarFrames() {
       for (let i = 0; i < TOTAL_FRAMES; i++) {
         preloadedIdle.push(null);
@@ -523,7 +523,7 @@
       let loadIndex = 0;
       function loadNextBatch() {
         if (loadIndex >= PRELOAD_COUNT) return;
-        const batchSize = 10;
+        const batchSize = 2;
         for (let j = 0; j < batchSize && (loadIndex + j) < PRELOAD_COUNT; j++) {
           const idx = loadIndex + j;
           
@@ -540,7 +540,7 @@
           speakImg.src = `/avatar_speak/frame_${idx}.jpg`;
         }
         loadIndex += batchSize;
-        setTimeout(loadNextBatch, 80); // Gentler pacing to avoid blocking browser connection pool
+        setTimeout(loadNextBatch, 300); // Gentler pacing to avoid blocking browser connection pool
       }
       loadNextBatch();
     }
@@ -683,8 +683,11 @@
     // Initializations
     initPeer();
     initWebSocket();
-    preloadAvatarFrames();
-    pollSync();
+    pollSync().then(() => {
+      preloadAvatarFrames();
+    }).catch(() => {
+      preloadAvatarFrames();
+    });
     setInterval(pollSync, 3000);
   </script>
 </body>

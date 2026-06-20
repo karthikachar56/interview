@@ -50,7 +50,7 @@
 }
 
 .nav-link.active {
-  background: rgba(139, 92, 246, 0.08); /* var(--accent-primary) with opacity */
+  background: rgba(37, 99, 235, 0.08); /* Corporate Blue with opacity */
   color: var(--accent-primary);
   border-left: 3px solid var(--accent-primary);
 }
@@ -319,13 +319,13 @@
 
 /* High contrast and readability overrides inside the Admin main panel */
 .admin-main {
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --accent-primary: #c084fc; /* Light purple */
-  --accent-secondary: #2dd4bf; /* Light teal */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --accent-primary: #2563eb; 
+  --accent-secondary: #0d9488;
 }
 
-/* Ensure container panels inside main workspace use light text */
+/* Ensure container panels inside main workspace use dark text */
 .admin-main .glass-panel,
 .admin-main .room-panel {
   color: var(--text-primary);
@@ -353,7 +353,7 @@
 }
 
 .admin-main .metric-value {
-  color: #38bdf8 !important; /* High contrast sky-blue for metrics */
+  color: var(--accent-primary) !important;
 }
 
 /* Form fields (Search, textareas, dropdowns) should have white backgrounds and dark text */
@@ -362,12 +362,12 @@
 .admin-main select {
   background: #ffffff !important;
   color: #0f172a !important;
-  border: 1px solid rgba(30, 58, 138, 0.45) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
 }
 
 .admin-main input[type="text"]::placeholder,
 .admin-main textarea::placeholder {
-  color: #64748b !important;
+  color: #94a3b8 !important;
 }
 
 .admin-main select option {
@@ -383,53 +383,53 @@
 
 .admin-main .status-badge.status-active,
 .admin-main .status-badge.status-completed {
-  background: rgba(45, 212, 191, 0.2) !important;
-  color: #2dd4bf !important;
+  background: rgba(13, 148, 136, 0.1) !important;
+  color: #0d9488 !important;
 }
 
 .admin-main .status-badge.status-paused,
 .admin-main .status-badge.status-waiting {
-  background: rgba(251, 191, 36, 0.2) !important;
-  color: #fbbf24 !important;
+  background: rgba(245, 158, 11, 0.1) !important;
+  color: #d97706 !important;
 }
 
 .admin-main .status-badge.status-in_progress {
-  background: rgba(192, 132, 252, 0.2) !important;
-  color: #c084fc !important;
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #2563eb !important;
 }
 
 .admin-main .status-badge.status-escalated {
-  background: rgba(248, 113, 113, 0.2) !important;
-  color: #f87171 !important;
+  background: rgba(220, 38, 38, 0.1) !important;
+  color: #dc2626 !important;
 }
 
 /* Quick rating buttons active styles */
 .admin-main .rating-btn {
   color: var(--text-primary);
-  border-color: var(--glass-border);
+  border-color: rgba(226, 232, 240, 0.8);
 }
 
 .admin-main .rating-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.04);
   border-color: var(--text-primary);
 }
 
 .admin-main .rating-btn.active-good {
-  color: #34d399 !important;
-  border-color: #34d399 !important;
-  background: rgba(52, 211, 153, 0.2) !important;
+  color: #0d9488 !important;
+  border-color: #0d9488 !important;
+  background: rgba(13, 148, 136, 0.1) !important;
 }
 
 .admin-main .rating-btn.active-bad {
-  color: #f87171 !important;
-  border-color: #f87171 !important;
-  background: rgba(248, 113, 113, 0.2) !important;
+  color: #dc2626 !important;
+  border-color: #dc2626 !important;
+  background: rgba(220, 38, 38, 0.1) !important;
 }
 
 .admin-main .rating-btn.active-hard {
-  color: #fbbf24 !important;
-  border-color: #fbbf24 !important;
-  background: rgba(251, 191, 36, 0.2) !important;
+  color: #d97706 !important;
+  border-color: #d97706 !important;
+  background: rgba(245, 158, 11, 0.1) !important;
 }
 
 /* Ensure student/transcript names in feed stand out */
