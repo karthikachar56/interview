@@ -283,71 +283,75 @@
     }
 
     function initSpeechRecognition() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        console.warn('Speech Recognition not supported in this browser.');
-        return;
-      }
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          console.warn('Speech Recognition not supported in this browser.');
+          return;
+        }
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
 
-      recognition.onstart = () => {
-        isRecognitionRunning = true;
-        hasPermissionError = false;
-      };
+        recognition.onstart = () => {
+          isRecognitionRunning = true;
+          hasPermissionError = false;
+        };
 
-      recognition.onresult = (event) => {
-        // Ignore everything while AI is active (speaking)
-        if (isAIActive) return;
+        recognition.onresult = (event) => {
+          // Ignore everything while AI is active (speaking)
+          if (isAIActive) return;
 
-        let interim = '';
-        let final = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            final += event.results[i][0].transcript + ' ';
-          } else {
-            interim += event.results[i][0].transcript;
+          let interim = '';
+          let final = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              final += event.results[i][0].transcript + ' ';
+            } else {
+              interim += event.results[i][0].transcript;
+            }
           }
-        }
-        
-        if (final) {
-          const cleanedFinal = cleanTTSBleed(final, currentQuestionText);
-          if (cleanedFinal) {
-            finalTranscription += cleanedFinal;
+          
+          if (final) {
+            const cleanedFinal = cleanTTSBleed(final, currentQuestionText);
+            if (cleanedFinal) {
+              finalTranscription += cleanedFinal;
+            }
           }
-        }
-        interimTranscription = cleanTTSBleed(interim, currentQuestionText);
-        syncDraft(finalTranscription + interimTranscription);
-        renderTranscriptBubbles();
-      };
+          interimTranscription = cleanTTSBleed(interim, currentQuestionText);
+          syncDraft(finalTranscription + interimTranscription);
+          renderTranscriptBubbles();
+        };
 
-      recognition.onerror = (event) => {
-        if (event.error !== 'aborted') {
-          console.error("Speech Recognition error:", event.error);
-        }
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          hasPermissionError = true;
-        }
-        // Restart if it crashes or drops (and no permission error)
-        if (!isEnding && micOn && !hasPermissionError) {
-          setTimeout(() => {
+        recognition.onerror = (event) => {
+          if (event.error !== 'aborted') {
+            console.error("Speech Recognition error:", event.error);
+          }
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            hasPermissionError = true;
+          }
+          // Restart if it crashes or drops (and no permission error)
+          if (!isEnding && micOn && !hasPermissionError) {
+            setTimeout(() => {
+              safeStartRecognition();
+            }, 1000);
+          }
+        };
+
+        recognition.onend = () => {
+          isRecognitionRunning = false;
+          // Restart mic continuously to keep it warm
+          if (!isEnding && micOn && !hasPermissionError) {
             safeStartRecognition();
-          }, 1000);
-        }
-      };
+          }
+        };
 
-      recognition.onend = () => {
-        isRecognitionRunning = false;
-        // Restart mic continuously to keep it warm
-        if (!isEnding && micOn && !hasPermissionError) {
-          safeStartRecognition();
-        }
-      };
-
-      // Start immediately — mic is always on
-      try { recognition.start(); } catch(e){}
+        // Start immediately — mic is always on
+        try { recognition.start(); } catch(e){}
+      } catch (err) {
+        console.warn("Speech Recognition initialization failed (potentially blocked by iframe sandbox or permission policy):", err);
+      }
     }
 
     // Speech Synthesis
@@ -774,11 +778,26 @@
     });
 
     // WebSockets & Previews
+    let wsRetryCount = 0;
+    const MAX_WS_RETRIES = 5;
+
     function initWebSocket() {
+      // Disable WebSockets on Vercel to prevent infinite error logging loops since Vercel lacks WebSocket support
+      if (window.location.hostname.endsWith('.vercel.app')) {
+        console.log('WebSocket connections are disabled on Vercel deployments. Falling back to HTTP polling.');
+        return;
+      }
+
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsHost = window.location.host || 'localhost:3000';
       const wsUrl = `${wsProtocol}//${wsHost}/ws`;
-      socket = new WebSocket(wsUrl);
+      
+      try {
+        socket = new WebSocket(wsUrl);
+      } catch (wsErr) {
+        console.warn('WebSocket instantiation failed:', wsErr);
+        return;
+      }
 
       socket.onopen = () => {
         console.log('WS Connection established');
@@ -791,8 +810,13 @@
       };
 
       socket.onclose = () => {
-        console.warn('WS Connection closed, retrying in 3s...');
-        setTimeout(initWebSocket, 3000);
+        if (wsRetryCount < MAX_WS_RETRIES) {
+          wsRetryCount++;
+          console.warn(`WS Connection closed, retrying in 3s... (Attempt ${wsRetryCount}/${MAX_WS_RETRIES})`);
+          setTimeout(initWebSocket, 3000);
+        } else {
+          console.warn('Max WebSocket retry limit reached. Falling back to HTTP polling.');
+        }
       };
 
       socket.onerror = (err) => {
@@ -1092,10 +1116,9 @@
     
     initWebSocket();
     preloadAvatarFrames();
-    initMedia().then(() => {
-      initSpeechRecognition();
-      startInterview();
-    });
+    initMedia();
+    initSpeechRecognition();
+    startInterview();
   </script>
 </body>
 </html>

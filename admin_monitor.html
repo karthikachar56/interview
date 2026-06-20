@@ -586,11 +586,26 @@
     }
 
     let socket = null;
+    let wsRetryCount = 0;
+    const MAX_WS_RETRIES = 5;
+
     function initWebSocket() {
+      // Disable WebSockets on Vercel to prevent infinite error logging loops since Vercel lacks WebSocket support
+      if (window.location.hostname.endsWith('.vercel.app')) {
+        console.log('WebSocket connections are disabled on Vercel deployments. Falling back to HTTP polling.');
+        return;
+      }
+
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsHost = window.location.host || 'localhost:3000';
       const wsUrl = `${wsProtocol}//${wsHost}/ws`;
-      socket = new WebSocket(wsUrl);
+      
+      try {
+        socket = new WebSocket(wsUrl);
+      } catch (wsErr) {
+        console.warn('WebSocket instantiation failed:', wsErr);
+        return;
+      }
 
       socket.onopen = () => {
         console.log('Admin WS Connection established');
@@ -613,8 +628,13 @@
       };
 
       socket.onclose = () => {
-        console.warn('Admin WS Connection closed, retrying in 3s...');
-        setTimeout(initWebSocket, 3000);
+        if (wsRetryCount < MAX_WS_RETRIES) {
+          wsRetryCount++;
+          console.warn(`Admin WS Connection closed, retrying in 3s... (Attempt ${wsRetryCount}/${MAX_WS_RETRIES})`);
+          setTimeout(initWebSocket, 3000);
+        } else {
+          console.warn('Max Admin WebSocket retry limit reached. Falling back to HTTP polling.');
+        }
       };
 
       socket.onerror = (err) => {

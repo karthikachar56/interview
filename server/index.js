@@ -210,6 +210,10 @@ async function saveSessionsFallback() {
 }
 
 async function connectDb() {
+  if (process.env.USE_LOCAL_DB === 'true') {
+    mongoUnavailable = true;
+    return null;
+  }
   if (mongoUnavailable) return null;
   if (dbClient) return dbClient;
 
@@ -227,6 +231,7 @@ async function connectDb() {
     return dbClient;
   } catch (err) {
     console.warn('MongoDB unavailable:', err.message);
+    console.warn('TIP: If deploying to Vercel, ensure you have whitelisted access from all IPs (0.0.0.0/0) in MongoDB Atlas, as Vercel uses dynamic IP addresses. Alternatively, set the environment variable USE_LOCAL_DB=true to run in local fallback mode.');
     mongoUnavailable = true;
     try {
       await client.close();
