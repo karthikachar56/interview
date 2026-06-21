@@ -382,27 +382,75 @@
 
       const utterance = new SpeechSynthesisUtterance(text);
       const voices = window.speechSynthesis.getVoices();
-      // Prioritize local English male voices to ensure a zero-latency male interviewer voice
-      const maleIndicators = ['male', 'david', 'daniel', 'alex', 'mark', 'george', 'ravi', 'sean', 'james', 'richard', 'thomas', 'guy'];
+      
+      // Helper function to identify explicitly female voices to exclude them
+      const isFemaleVoice = (v) => {
+        const name = (v.name || '').toLowerCase();
+        if (name.includes('male')) return false; // Contains 'male', so not female
+        const femaleNames = ['female', 'zira', 'hazel', 'susan', 'heera', 'haruka', 'karen', 'moira', 'tessa', 'veena', 'samantha', 'victoria', 'elsa', 'anna', 'siri', 'cortana', 'helen', 'katherine', 'linda', 'yunjin', 'huihui', 'yaoyao', 'xiaoxiao', 'nanami', 'sayaka'];
+        if (femaleNames.some(ind => name.includes(ind))) return true;
+        // Google/default voices that are female if they don't contain "male"
+        if ((name.includes('google us english') || name.includes('google uk english') || name.includes('google en-us')) && !name.includes('male')) {
+          return true;
+        }
+        return false;
+      };
+
+      // Helper function to identify explicitly male voices to prioritize them
+      const isMaleVoice = (v) => {
+        if (isFemaleVoice(v)) return false;
+        const name = (v.name || '').toLowerCase();
+        const maleNames = ['male', 'david', 'daniel', 'alex', 'mark', 'george', 'ravi', 'sean', 'james', 'richard', 'thomas', 'guy', 'peter', 'sam', 'fred', 'steve', 'microsoft david', 'microsoft ravi', 'google us english male', 'google uk english male'];
+        if (maleNames.some(ind => name.includes(ind))) return true;
+        return false;
+      };
+
       const englishVoices = voices.filter(v => v.lang.startsWith('en'));
       
-      let chosenVoice = englishVoices.find(v => 
-        v.localService === true && 
-        maleIndicators.some(ind => v.name.toLowerCase().includes(ind))
-      );
-      
+      const maleEnglishVoices = englishVoices.filter(isMaleVoice);
+      const neutralEnglishVoices = englishVoices.filter(v => !isMaleVoice(v) && !isFemaleVoice(v));
+
+      let chosenVoice = null;
+
+      // 1. Prioritize local English male voices
+      chosenVoice = maleEnglishVoices.find(v => v.localService === true);
+
+      // 2. Fallback to any English male voice
       if (!chosenVoice) {
-        chosenVoice = englishVoices.find(v => 
-          maleIndicators.some(ind => v.name.toLowerCase().includes(ind))
-        );
+        chosenVoice = maleEnglishVoices[0];
       }
-      
+
+      // 3. Fallback to local English neutral voices (not explicitly female)
       if (!chosenVoice) {
-        chosenVoice = englishVoices.find(v => v.localService === true);
+        chosenVoice = neutralEnglishVoices.find(v => v.localService === true);
       }
-      
-      const usVoice = chosenVoice || englishVoices[0] || voices[0];
-      if (usVoice) utterance.voice = usVoice;
+
+      // 4. Fallback to any English neutral voice
+      if (!chosenVoice) {
+        chosenVoice = neutralEnglishVoices[0];
+      }
+
+      // 5. Fallback to general male voices (any language)
+      if (!chosenVoice) {
+        const generalMaleVoices = voices.filter(isMaleVoice);
+        chosenVoice = generalMaleVoices.find(v => v.localService === true) || generalMaleVoices[0];
+      }
+
+      // 6. Last resort fallback (excluding female voices if possible)
+      if (!chosenVoice) {
+        chosenVoice = englishVoices.find(v => !isFemaleVoice(v) && v.localService === true) 
+          || englishVoices.find(v => !isFemaleVoice(v))
+          || englishVoices.find(v => v.localService === true)
+          || englishVoices[0]
+          || voices[0];
+      }
+
+      if (chosenVoice) {
+        utterance.voice = chosenVoice;
+        console.log("Selected voice for speech synthesis:", chosenVoice.name, "(Local:", chosenVoice.localService, ")");
+      } else {
+        console.warn("No suitable voice found for speech synthesis.");
+      }
       utterance.rate = 0.88; // Slightly slower speaking rate for better clarity
       utterance.pitch = 1.0;
 
