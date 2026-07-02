@@ -164,42 +164,46 @@
         cards.forEach(c => { if (c !== card) c.classList.add('disabled'); });
 
         try {
-          const payload = {
-            studentName: name,
-            srn: storedSrn,
-            usn: storedSrn, // Backward compatibility
-            college: localStorage.getItem('studentCollege') || '',
-            branch: localStorage.getItem('studentBranch') || '',
-            year: localStorage.getItem('studentYear') || '4th Year',
-            password: localStorage.getItem('studentPassword') || null
-          };
+          let sessionId = localStorage.getItem('currentSessionId');
 
-          const regRes = await fetch('/api/student/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
+          if (!sessionId) {
+            const payload = {
+              studentName: name,
+              srn: storedSrn,
+              usn: storedSrn, // Backward compatibility
+              college: localStorage.getItem('studentCollege') || '',
+              branch: localStorage.getItem('studentBranch') || '',
+              year: localStorage.getItem('studentYear') || '4th Year',
+              password: localStorage.getItem('studentPassword') || null
+            };
 
-          const regData = await regRes.json();
-          if (regRes.ok && regData.sessionId) {
-            const sessionId = regData.sessionId;
-            localStorage.setItem('currentSessionId', sessionId);
-
-            const res = await fetch('/api/interview/sync', {
+            const regRes = await fetch('/api/student/register', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sessionId, round: roundName })
+              body: JSON.stringify(payload)
             });
 
-            if (res.ok) {
-              localStorage.setItem('selectedRound', roundName);
-              window.location.href = '/student_setup.html';
-            } else {
-              alert('Failed to select round. Please try again.');
-              resetUI();
+            if (!regRes.ok) {
+              const data = await regRes.json();
+              throw new Error(data.error || 'Failed to start a new session.');
             }
+
+            const regData = await regRes.json();
+            sessionId = regData.sessionId;
+            localStorage.setItem('currentSessionId', sessionId);
+          }
+
+          const res = await fetch('/api/interview/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, round: roundName })
+          });
+
+          if (res.ok) {
+            localStorage.setItem('selectedRound', roundName);
+            window.location.href = '/student_setup.html';
           } else {
-            alert('Failed to start a new session. Please try again.');
+            alert('Failed to select round. Please try again.');
             resetUI();
           }
         } catch (err) {

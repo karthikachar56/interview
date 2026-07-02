@@ -160,7 +160,8 @@
 
     // Navigation triggers
     document.getElementById('startInterviewBtn').addEventListener('click', () => {
-      // Directs candidate to the round selection screen
+      // Clear legacy/completed session ID to generate a fresh one
+      localStorage.removeItem('currentSessionId');
       window.location.href = '/student_introduction.html';
     });
 
