@@ -510,8 +510,14 @@ async function runBackgroundEvaluation(sessionId, transcript, vallyMetricsHistor
     
     let score = Math.min(100, Math.max(0, calculatedTotalScore));
     let feedback = 'Good effort. Keep practicing to improve your interview skills.';
-    let strengths = ['Showed willingness to engage', 'Attempted all questions'];
-    let improvements = ['Work on technical depth', 'Practice clear explanations'];
+    let strengths = [
+      { title: 'Willingness to Engage', detail: 'You showed great enthusiasm and active participation in answering the questions throughout the session.' },
+      { title: 'Attempted Questions', detail: 'You attempted to answer every question asked, demonstrating commitment and endurance.' }
+    ];
+    let improvements = [
+      { title: 'Technical Depth', detail: 'Focus on providing deeper technical context and explaining underlying architectural concepts in your answers.' },
+      { title: 'Clear Explanations', detail: 'Practice structuring your explanations step-by-step to improve clarity and logical coherence.' }
+    ];
 
     if (!hasStudentAnswers) {
       score = 0;
@@ -536,11 +542,21 @@ ${transcriptStr}
 ${vallyMetricsStr}
 Evaluate the candidate and respond with ONLY valid JSON in this exact format:
 {
-  "feedback": "<1 short sentence overall feedback>",
-  "strengths": ["<1-2 words>", "<1-2 words>", "<1-2 words>"],
-  "improvements": ["<1-2 words>", "<1-2 words>", "<1-2 words>"]
+  "feedback": "<A detailed, comprehensive overall evaluation of the candidate's performance, covering their technical skills, communication style, and confidence. Must be at least 2-3 sentences long.>",
+  "strengths": [
+    {
+      "title": "<1-3 words title>",
+      "detail": "<Detailed explanation of this strength with specific examples from their transcript and behavior. Must be 1-2 detailed sentences.>"
+    }
+  ],
+  "improvements": [
+    {
+      "title": "<1-3 words title>",
+      "detail": "<Detailed explanation of what to improve and concrete, actionable advice on how to improve. Must be 1-2 detailed sentences.>"
+    }
+  ]
 }
-Provide strengths and improvements based on the candidate's answers and behavioral metrics. Be concise.`;
+Provide exactly 2-3 key strengths and exactly 2-3 key improvements based on the candidate's actual answers and behavioral metrics. Be detailed, constructive, and highly professional.`;
 
       if (process.env.GEMINI_API_KEY) {
         try {
@@ -559,8 +575,14 @@ Provide strengths and improvements based on the candidate's answers and behavior
         } catch (aiErr) {
           console.error('AI evaluation failed, using defaults:', aiErr.message);
           feedback = "Excellent effort! You have successfully completed the interview. Keep practicing to refine your responses and communication delivery.";
-          strengths = ["Engaged actively", "Logical reasoning", "Good pacing"];
-          improvements = ["Technical depth", "Clear delivery", "Concise articulation"];
+          strengths = [
+            { title: 'Active Engagement', detail: 'You actively engaged with the interviewer throughout the session, showing high motivation.' },
+            { title: 'Logical Reasoning', detail: 'Your answers demonstrated a solid structured thought process and logical reasoning flow.' }
+          ];
+          improvements = [
+            { title: 'Technical Depth', detail: 'Practice detailing the specific tools, libraries, and design choices relevant to the domain.' },
+            { title: 'Articulation', detail: 'Work on refining your pacing and delivery structure to ensure your points are concise and clear.' }
+          ];
         }
       } else {
         console.warn('GEMINI_API_KEY not set. Using fallback scoring.');

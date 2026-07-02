@@ -236,20 +236,62 @@
       const list = document.getElementById('feedbackList');
       list.innerHTML = "";
 
-      const strengths = session.strengths || ['Showed willingness to engage', 'Attempted all questions'];
+      const defaultStrengths = [
+        { title: 'Willingness to Engage', detail: 'You showed great enthusiasm and active participation in answering the questions throughout the session.' },
+        { title: 'Attempted Questions', detail: 'You attempted to answer every question asked, demonstrating commitment and endurance.' }
+      ];
+      const strengths = session.strengths && session.strengths.length > 0 ? session.strengths : defaultStrengths;
+      
       strengths.forEach(s => {
+        const isObj = typeof s === 'object' && s !== null;
+        const title = isObj ? s.title : 'Strength';
+        const detail = isObj ? s.detail : s;
+        if (!detail) return;
+
         const li = document.createElement('li');
         li.className = 'feedback-item feedback-strength';
-        li.innerHTML = `<strong style="color: var(--accent-secondary);">✓ Strength:</strong> ${escapeHTML(s)}`;
+        li.style.marginBottom = '0.5rem';
+        li.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--accent-secondary); font-size: 0.95rem;">
+              <span>✓</span>
+              <span>${escapeHTML(title)}</span>
+            </div>
+            <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); font-weight: 500;">
+              ${escapeHTML(detail)}
+            </p>
+          </div>
+        `;
         list.appendChild(li);
       });
 
-      const improvements = session.improvements || ['Work on technical depth', 'Practice clear explanations'];
-      // Filter out internal training comments
-      improvements.filter(imp => !imp.startsWith('[TRAINING')).forEach(imp => {
+      const defaultImprovements = [
+        { title: 'Technical Depth', detail: 'Focus on providing deeper technical context and explaining underlying architectural concepts in your answers.' },
+        { title: 'Clear Explanations', detail: 'Practice structuring your explanations step-by-step to improve clarity and logical coherence.' }
+      ];
+      const improvements = session.improvements && session.improvements.length > 0 ? session.improvements : defaultImprovements;
+
+      improvements.forEach(imp => {
+        const isObj = typeof imp === 'object' && imp !== null;
+        const title = isObj ? imp.title : 'Focus Area';
+        const detail = isObj ? imp.detail : imp;
+        if (!detail) return;
+        if (typeof detail === 'string' && detail.startsWith('[TRAINING')) return;
+
         const li = document.createElement('li');
         li.className = 'feedback-item feedback-improve';
-        li.innerHTML = `<strong style="color: var(--accent-danger);">↗ Improve:</strong> ${escapeHTML(imp)}`;
+        li.style.marginBottom = '0.5rem';
+        li.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--accent-danger); font-size: 0.95rem;">
+              <span>↗</span>
+              <span>${escapeHTML(title)}</span>
+            </div>
+            <p style="margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); font-weight: 500;">
+              ${escapeHTML(detail)}
+            </p>
+          </div>
+        `;
         list.appendChild(li);
       });
 
