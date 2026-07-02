@@ -60,7 +60,7 @@
           <input
             type="text"
             id="searchBar"
-            placeholder="🔍 Search by name, USN, or college..."
+            placeholder="🔍 Search by name, SRN, or college..."
             style="flex: 1; min-width: 200px; padding: 0.625rem 1rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: rgba(15, 23, 42, 0.04); color: var(--text-primary); fontSize: 0.875rem; outline: none;"
           />
           <div style="display: flex; gap: 0.5rem;" id="filterButtons">
@@ -154,7 +154,7 @@
       const filtered = sessions.filter(s => {
         const matchSearch = search === '' ||
           s.studentName.toLowerCase().includes(search.toLowerCase()) ||
-          s.usn.toLowerCase().includes(search.toLowerCase()) ||
+          (s.srn || s.usn || '').toLowerCase().includes(search.toLowerCase()) ||
           (s.college || '').toLowerCase().includes(search.toLowerCase());
         const matchFilter = filter === 'all' || s.status === filter;
         return matchSearch && matchFilter;
@@ -183,7 +183,7 @@
           tr.innerHTML = `
             <td>
               <div style="font-weight: 600; color: 'var(--text-primary)'">${escapeHTML(s.studentName)}</div>
-              <div style="font-size: 0.8rem; color: var(--text-secondary)">${escapeHTML(s.usn)}</div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary)">${escapeHTML(s.srn || s.usn || '')}</div>
             </td>
             <td>
               <div style="font-size: 0.9rem">${escapeHTML(s.college || '—')}</div>

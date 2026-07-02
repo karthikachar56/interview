@@ -907,6 +907,20 @@
       socket.onerror = (err) => {
         console.error("WS error:", err);
       };
+
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'completed') {
+            console.log('Session completed by admin. Navigating to report...');
+            clearInterval(takeoverPoll);
+            if (socket) socket.close();
+            window.location.href = `/student_report.html?sessionId=${encodeURIComponent(sessionId)}`;
+          }
+        } catch (err) {
+          console.warn('WS message parse error:', err);
+        }
+      };
     }
 
     function syncDraft(text) {

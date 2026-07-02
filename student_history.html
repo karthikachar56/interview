@@ -112,10 +112,10 @@
 
   <script>
     // Authentication guard
-    const usn = localStorage.getItem('studentUsn');
+    const srn = localStorage.getItem('studentSrn') || localStorage.getItem('studentUsn');
     const studentName = localStorage.getItem('studentName') || 'Student';
 
-    if (!usn) {
+    if (!srn) {
       window.location.href = '/student_registration.html';
     }
 
@@ -126,7 +126,7 @@
     const listPanel = document.getElementById('listPanel');
 
     // Fetch Completed Sessions
-    fetch(`/api/student/sessions?usn=${encodeURIComponent(usn)}`)
+    fetch(`/api/student/sessions?srn=${encodeURIComponent(srn)}`)
       .then(res => res.json())
       .then(data => {
         loadingPanel.style.display = 'none';

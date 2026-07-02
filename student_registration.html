@@ -109,8 +109,8 @@
             <input type="text" id="studentName" required placeholder="John Doe" class="input-field">
           </div>
           <div class="form-group">
-            <label>USN *</label>
-            <input type="text" id="usn" required placeholder="1AB22CS001" class="input-field">
+            <label>SRN *</label>
+            <input type="text" id="srn" required placeholder="PES1UG22CS001" class="input-field">
           </div>
         </div>
 
@@ -162,8 +162,12 @@
 
   <script>
     // Redirect to dashboard if student is already logged in
-    const storedUsn = localStorage.getItem('studentUsn');
-    if (storedUsn) {
+    const storedSrn = localStorage.getItem('studentSrn') || localStorage.getItem('studentUsn');
+    if (storedSrn) {
+      // Migrate legacy studentUsn if present
+      if (!localStorage.getItem('studentSrn') && localStorage.getItem('studentUsn')) {
+        localStorage.setItem('studentSrn', localStorage.getItem('studentUsn'));
+      }
       window.location.href = '/student_dashboard.html';
     }
 
@@ -179,14 +183,14 @@
 
       const payload = {
         studentName: document.getElementById('studentName').value.trim(),
-        usn: document.getElementById('usn').value.trim().toUpperCase(),
+        srn: document.getElementById('srn').value.trim().toUpperCase(),
         college: document.getElementById('college').value.trim(),
         branch: document.getElementById('branch').value.trim(),
         year: document.getElementById('year').value
       };
 
-      if (!payload.studentName || !payload.usn) {
-        errorBox.textContent = '⚠️ Full Name and USN are required.';
+      if (!payload.studentName || !payload.srn) {
+        errorBox.textContent = '⚠️ Full Name and SRN are required.';
         errorBox.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.textContent = 'Proceed to Setup →';
@@ -195,7 +199,8 @@
 
       // Store details in localStorage
       localStorage.setItem('studentName', payload.studentName);
-      localStorage.setItem('studentUsn', payload.usn);
+      localStorage.setItem('studentSrn', payload.srn);
+      localStorage.setItem('studentUsn', payload.srn); // Deprecated legacy fallback
       localStorage.setItem('studentCollege', payload.college);
       localStorage.setItem('studentBranch', payload.branch);
       localStorage.setItem('studentYear', payload.year);

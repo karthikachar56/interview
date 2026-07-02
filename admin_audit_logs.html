@@ -102,7 +102,7 @@
           timestamp: s.startTime,
           action: 'Session Started',
           actionColor: 'rgba(59,130,246,0.2)',
-          candidate: `${s.studentName} (${s.usn || '—'})`,
+          candidate: `${s.studentName} (${s.srn || s.usn || '—'})`,
           sessionId: s.sessionId,
           details: `AI interview session initiated.`,
         });
@@ -113,7 +113,7 @@
             timestamp: s.updatedAt,
             action: 'Admin Takeover',
             actionColor: 'rgba(239,68,68,0.2)',
-            candidate: `${s.studentName} (${s.usn || '—'})`,
+            candidate: `${s.studentName} (${s.srn || s.usn || '—'})`,
             sessionId: s.sessionId,
             details: s.adminMessage ? `Admin asked: "${s.adminMessage.slice(0, 80)}..."` : 'Admin took over the interview.',
           });
@@ -125,7 +125,7 @@
             timestamp: s.completedAt,
             action: 'Completed',
             actionColor: 'rgba(16,185,129,0.2)',
-            candidate: `${s.studentName} (${s.usn || '—'})`,
+            candidate: `${s.studentName} (${s.srn || s.usn || '—'})`,
             sessionId: s.sessionId,
             details: `Interview completed and scored.`,
           });

@@ -112,10 +112,10 @@
 
   <script>
     // Authentication guard
-    const usn = localStorage.getItem('studentUsn');
+    const srn = localStorage.getItem('studentSrn') || localStorage.getItem('studentUsn');
     const studentName = localStorage.getItem('studentName');
 
-    if (!usn || !studentName) {
+    if (!srn || !studentName) {
       localStorage.clear();
       window.location.href = '/student_registration.html';
     }
@@ -125,7 +125,7 @@
     document.getElementById('greetingTitle').textContent = `Welcome back, ${firstName}! 👋`;
 
     // Load Stats
-    fetch(`/api/student/sessions?usn=${encodeURIComponent(usn)}`)
+    fetch(`/api/student/sessions?srn=${encodeURIComponent(srn)}`)
       .then(res => res.json())
       .then(data => {
         document.getElementById('statsLoading').style.display = 'none';

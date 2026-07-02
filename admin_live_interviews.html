@@ -124,7 +124,7 @@
               <td>
                 <div>
                   <strong>${escapeHTML(session.studentName)}</strong> 
-                  <span style="font-size: 0.8rem; color: var(--text-secondary)">(${escapeHTML(session.usn)})</span>
+                  <span style="font-size: 0.8rem; color: var(--text-secondary)">(${escapeHTML(session.srn || session.usn || '')})</span>
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary)">
                   ${escapeHTML(session.college)} • ${escapeHTML(session.branch)}

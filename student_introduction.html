@@ -135,8 +135,8 @@
 
   <script>
     // Authentication guard - must be registered
-    const storedUsn = localStorage.getItem('studentUsn');
-    if (!storedUsn) {
+    const storedSrn = localStorage.getItem('studentSrn') || localStorage.getItem('studentUsn');
+    if (!storedSrn) {
       window.location.href = '/student_registration.html';
     }
 
@@ -166,7 +166,8 @@
         try {
           const payload = {
             studentName: name,
-            usn: storedUsn,
+            srn: storedSrn,
+            usn: storedSrn, // Backward compatibility
             college: localStorage.getItem('studentCollege') || '',
             branch: localStorage.getItem('studentBranch') || '',
             year: localStorage.getItem('studentYear') || '4th Year'

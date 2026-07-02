@@ -809,13 +809,13 @@ async function startServer() {
 
   // candidate login/register
   app.post('/api/student/register', async (req, res) => {
-    const { studentName, usn, college, branch, year } = req.body;
-    if (!studentName || !usn) {
+    const { studentName, srn, usn, college, branch, year } = req.body;
+    const finalSrn = (srn || usn || '').trim().toUpperCase();
+    if (!studentName || !finalSrn) {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
-    const baseUsn = usn.trim().toUpperCase();
-    const sessionId = `${baseUsn}-${Date.now()}`;
+    const sessionId = `${finalSrn}-${Date.now()}`;
     
     const doc = {
       sessionId,
@@ -823,7 +823,8 @@ async function startServer() {
       adminMessage: null,
       studentAnswer: null,
       studentName: studentName.trim(),
-      usn: baseUsn,
+      srn: finalSrn,
+      usn: finalSrn, // Keep usn populated for legacy support
       college: (college || '').trim(),
       branch: (branch || '').trim(),
       year: year || '4th Year',
@@ -865,12 +866,12 @@ async function startServer() {
 
   // student sessions (history / dashboard stats)
   app.get('/api/student/sessions', async (req, res) => {
-    const usn = req.query.usn;
-    if (!usn) return res.status(400).json({ error: 'Missing usn' });
+    const srn = req.query.srn || req.query.usn;
+    if (!srn) return res.status(400).json({ error: 'Missing srn' });
 
     try {
       if (mongoUnavailable) {
-        const filtered = backupSessions.filter(s => s.usn === usn.toUpperCase() && s.status === 'completed');
+        const filtered = backupSessions.filter(s => ((s.srn && s.srn === srn.toUpperCase()) || (s.usn && s.usn === srn.toUpperCase())) && s.status === 'completed');
         filtered.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
         return res.json({ sessions: filtered });
       }
@@ -879,13 +880,20 @@ async function startServer() {
       if (client) {
         const db = client.db(DB_NAME);
         const items = await db.collection('interviewsessions')
-          .find({ usn: usn.toUpperCase(), status: 'completed' })
+          .find({
+            $or: [
+              { srn: srn.toUpperCase() },
+              { usn: srn.toUpperCase() }
+            ],
+            status: 'completed'
+          })
           .sort({ completedAt: -1 })
           .toArray();
-        return res.json({ sessions: items });
+        const mapped = items.map(s => ({ ...s, srn: s.srn || s.usn }));
+        return res.json({ sessions: mapped });
       }
 
-      const filtered = backupSessions.filter(s => s.usn === usn.toUpperCase() && s.status === 'completed');
+      const filtered = backupSessions.filter(s => ((s.srn && s.srn === srn.toUpperCase()) || (s.usn && s.usn === srn.toUpperCase())) && s.status === 'completed');
       filtered.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
       res.json({ sessions: filtered });
     } catch (err) {
@@ -1065,6 +1073,18 @@ async function startServer() {
     }
     updates.updatedAt = new Date();
 
+    if (updates.status === 'completed') {
+      const wsSession = sessions.get(sessionId);
+      if (wsSession) {
+        const msg = JSON.stringify({ type: 'completed' });
+        for (const ws of wsSession.candidates) {
+          if (ws.readyState === 1) {
+            try { ws.send(msg); } catch (e) { console.warn("Failed to notify candidate via WS completed:", e.message); }
+          }
+        }
+      }
+    }
+
     try {
       if (mongoUnavailable) {
         let session = backupSessions.find(s => s.sessionId === sessionId);
@@ -1111,7 +1131,7 @@ async function startServer() {
         const completed = backupSessions.filter(s => s.status === 'completed' && s.score !== undefined);
         const map = new Map();
         for (const s of completed) {
-          const key = s.usn;
+          const key = s.srn || s.usn;
           if (!map.has(key)) {
             map.set(key, { ...s, score: 0 });
           }
@@ -1125,7 +1145,8 @@ async function startServer() {
         aggregated.sort((a, b) => b.score - a.score);
         return aggregated.slice(0, 25).map(s => ({
           studentName: s.studentName,
-          usn: s.usn,
+          srn: s.srn || s.usn,
+          usn: s.srn || s.usn,
           college: s.college,
           branch: s.branch,
           score: s.score,
@@ -1143,7 +1164,7 @@ async function startServer() {
         const items = await db.collection('interviewsessions').aggregate([
           { $match: { status: 'completed', score: { $exists: true } } },
           { $group: {
-              _id: '$usn',
+              _id: { $ifNull: [ '$srn', '$usn' ] },
               studentName: { $first: '$studentName' },
               college: { $first: '$college' },
               branch: { $first: '$branch' },
@@ -1154,6 +1175,7 @@ async function startServer() {
           { $limit: 25 },
           { $project: {
               _id: 0,
+              srn: '$_id',
               usn: '$_id',
               studentName: 1,
               college: 1,

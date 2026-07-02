@@ -140,7 +140,7 @@
 
   <script>
     // Authentication guard
-    const myUsn = localStorage.getItem('studentUsn') || '';
+    const mySrn = localStorage.getItem('studentSrn') || localStorage.getItem('studentUsn') || '';
 
     const loadingPanel = document.getElementById('loadingPanel');
     const emptyPanel = document.getElementById('emptyPanel');
@@ -196,7 +196,7 @@
           // Render table rows
           tableBody.innerHTML = "";
           entries.forEach((entry, index) => {
-            const isMe = entry.usn === myUsn;
+            const isMe = (entry.srn === mySrn) || (entry.usn === mySrn);
             const tr = document.createElement('tr');
             if (isMe) tr.className = 'me-row';
             
@@ -216,7 +216,7 @@
                   ${escapeHTML(entry.studentName)}
                   ${isMe ? '<span class="me-badge">You</span>' : ''}
                 </div>
-                <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHTML(entry.usn)}</div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHTML(entry.srn || entry.usn || '')}</div>
               </td>
               <td style="color: var(--text-secondary); font-size: 0.9rem;">${escapeHTML(entry.branch || '—')}</td>
               <td style="text-align: right; font-weight: 800; font-size: 1.1rem; color: ${getScoreColor(entry.score)}">${entry.score}/100</td>

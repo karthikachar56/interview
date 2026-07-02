@@ -213,7 +213,7 @@
         }
         const data = await res.json();
         if (data.session) {
-          document.getElementById('candidateName').textContent = `${data.session.studentName} (${data.session.usn || 'N/A'}) — Round: ${data.session.round || 'Technical'}`;
+          document.getElementById('candidateName').textContent = `${data.session.studentName} (${data.session.srn || data.session.usn || 'N/A'}) — Round: ${data.session.round || 'Technical'}`;
         } else {
           document.getElementById('candidateName').textContent = `Session ${sessionId}`;
         }
