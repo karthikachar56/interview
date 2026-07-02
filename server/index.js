@@ -885,6 +885,66 @@ async function startServer() {
     }
   });
 
+  // student login lookup by SRN
+  app.post('/api/student/login', async (req, res) => {
+    const { srn } = req.body;
+    const finalSrn = (srn || '').trim().toUpperCase();
+    if (!finalSrn) return res.status(400).json({ error: "SRN is required for login" });
+
+    try {
+      if (mongoUnavailable) {
+        const session = backupSessions.find(s => (s.srn === finalSrn || s.usn === finalSrn) && s.studentName);
+        if (!session) {
+          return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
+        }
+        return res.json({
+          success: true,
+          studentName: session.studentName,
+          srn: session.srn || session.usn,
+          college: session.college,
+          branch: session.branch,
+          year: session.year
+        });
+      }
+
+      const client = await connectDb();
+      if (client) {
+        const db = client.db(DB_NAME);
+        const session = await db.collection('interviewsessions').findOne(
+          { $or: [{ srn: finalSrn }, { usn: finalSrn }] },
+          { sort: { startTime: -1 } }
+        );
+        if (!session || !session.studentName) {
+          return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
+        }
+        return res.json({
+          success: true,
+          studentName: session.studentName,
+          srn: session.srn || session.usn,
+          college: session.college,
+          branch: session.branch,
+          year: session.year
+        });
+      }
+
+      const session = backupSessions.find(s => (s.srn === finalSrn || s.usn === finalSrn) && s.studentName);
+      if (!session) {
+        return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
+      }
+      res.json({
+        success: true,
+        studentName: session.studentName,
+        srn: session.srn || session.usn,
+        college: session.college,
+        branch: session.branch,
+        year: session.year
+      });
+    } catch (err) {
+      console.error('/api/student/login error:', err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // student sessions (history / dashboard stats)
   app.get('/api/student/sessions', async (req, res) => {
     const srn = req.query.srn || req.query.usn;
