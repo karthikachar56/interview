@@ -123,22 +123,22 @@
       <!-- Header -->
       <div class="header">
         <div class="avatar-icon">🎓</div>
-        <h2 id="formTitle">Student Registration</h2>
-        <p id="formDesc" style="margin-top: 0.25rem;">Enter your details to begin the AI mock interview</p>
+        <h2 id="formTitle">Student Log In</h2>
+        <p id="formDesc" style="margin-top: 0.25rem;">Enter your SRN to access your dashboard</p>
       </div>
 
       <!-- Tabs -->
       <div class="tabs-container">
-        <button type="button" id="tabRegister" class="tab-btn active">Register</button>
-        <button type="button" id="tabLogin" class="tab-btn">Log In</button>
+        <button type="button" id="tabLogin" class="tab-btn active">Log In</button>
+        <button type="button" id="tabRegister" class="tab-btn">Register</button>
       </div>
 
       <!-- Input Fields -->
       <div class="form-grid">
-        <div class="grid-row-2" id="nameSrnRow">
-          <div class="form-group" id="groupName">
+        <div class="grid-row-2" id="nameSrnRow" style="grid-template-columns: 1fr;">
+          <div class="form-group" id="groupName" style="display: none;">
             <label>Full Name *</label>
-            <input type="text" id="studentName" required placeholder="John Doe" class="input-field">
+            <input type="text" id="studentName" placeholder="John Doe" class="input-field">
           </div>
           <div class="form-group" id="groupSrn">
             <label>SRN *</label>
@@ -146,7 +146,7 @@
           </div>
         </div>
 
-        <div id="registrationFields" style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div id="registrationFields" style="display: none; flex-direction: column; gap: 1.25rem;">
           <div class="form-group">
             <label>College Name</label>
             <input type="text" id="college" placeholder="e.g. IIT Bombay" class="input-field">
@@ -185,7 +185,7 @@
 
       <!-- Submit button -->
       <button type="submit" id="submitBtn" class="btn-primary" style="width: 100%; font-size: 1rem; padding: 0.875rem;">
-        Proceed to Setup →
+        Log In →
       </button>
 
       <p style="text-align: center; margin-top: 1.25rem; color: var(--text-secondary); font-size: 0.8rem;">
@@ -218,7 +218,7 @@
     const formTitle = document.getElementById('formTitle');
     const formDesc = document.getElementById('formDesc');
 
-    let mode = 'register';
+    let mode = 'login';
 
     tabRegister.addEventListener('click', () => {
       mode = 'register';
