@@ -170,7 +170,8 @@
             usn: storedSrn, // Backward compatibility
             college: localStorage.getItem('studentCollege') || '',
             branch: localStorage.getItem('studentBranch') || '',
-            year: localStorage.getItem('studentYear') || '4th Year'
+            year: localStorage.getItem('studentYear') || '4th Year',
+            password: localStorage.getItem('studentPassword') || null
           };
 
           const regRes = await fetch('/api/student/register', {

@@ -830,7 +830,7 @@ async function startServer() {
 
   // candidate login/register
   app.post('/api/student/register', async (req, res) => {
-    const { studentName, srn, usn, college, branch, year } = req.body;
+    const { studentName, srn, usn, college, branch, year, password } = req.body;
     const finalSrn = (srn || usn || '').trim().toUpperCase();
     if (!studentName || !finalSrn) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -849,6 +849,7 @@ async function startServer() {
       college: (college || '').trim(),
       branch: (branch || '').trim(),
       year: year || '4th Year',
+      password: password || null,
       status: 'in_progress',
       aiStatus: 'active',
       startTime: new Date(),
@@ -885,9 +886,9 @@ async function startServer() {
     }
   });
 
-  // student login lookup by SRN
+  // student login lookup by SRN and Password
   app.post('/api/student/login', async (req, res) => {
-    const { srn } = req.body;
+    const { srn, password } = req.body;
     const finalSrn = (srn || '').trim().toUpperCase();
     if (!finalSrn) return res.status(400).json({ error: "SRN is required for login" });
 
@@ -896,6 +897,9 @@ async function startServer() {
         const session = backupSessions.find(s => (s.srn === finalSrn || s.usn === finalSrn) && s.studentName);
         if (!session) {
           return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
+        }
+        if (session.password && session.password !== password) {
+          return res.status(401).json({ error: "Incorrect password for this SRN." });
         }
         return res.json({
           success: true,
@@ -917,6 +921,9 @@ async function startServer() {
         if (!session || !session.studentName) {
           return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
         }
+        if (session.password && session.password !== password) {
+          return res.status(401).json({ error: "Incorrect password for this SRN." });
+        }
         return res.json({
           success: true,
           studentName: session.studentName,
@@ -930,6 +937,9 @@ async function startServer() {
       const session = backupSessions.find(s => (s.srn === finalSrn || s.usn === finalSrn) && s.studentName);
       if (!session) {
         return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
+      }
+      if (session.password && session.password !== password) {
+        return res.status(401).json({ error: "Incorrect password for this SRN." });
       }
       res.json({
         success: true,

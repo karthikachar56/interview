@@ -146,6 +146,11 @@
           </div>
         </div>
 
+        <div class="form-group" id="groupPassword">
+          <label>Password *</label>
+          <input type="password" id="password" required placeholder="••••••••" class="input-field">
+        </div>
+
         <div id="registrationFields" style="display: none; flex-direction: column; gap: 1.25rem;">
           <div class="form-group">
             <label>College Name</label>
@@ -255,8 +260,9 @@
       errorBox.style.display = 'none';
 
       const srnVal = document.getElementById('srn').value.trim().toUpperCase();
-      if (!srnVal) {
-        errorBox.textContent = '⚠️ SRN is required.';
+      const passwordVal = document.getElementById('password').value.trim();
+      if (!srnVal || !passwordVal) {
+        errorBox.textContent = '⚠️ SRN and Password are required.';
         errorBox.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.textContent = mode === 'login' ? 'Log In →' : 'Proceed to Setup →';
@@ -268,7 +274,7 @@
           const res = await fetch('/api/student/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ srn: srnVal })
+            body: JSON.stringify({ srn: srnVal, password: passwordVal })
           });
 
           if (!res.ok) {
@@ -310,6 +316,7 @@
         localStorage.setItem('studentName', nameVal);
         localStorage.setItem('studentSrn', srnVal);
         localStorage.setItem('studentUsn', srnVal);
+        localStorage.setItem('studentPassword', passwordVal);
         localStorage.setItem('studentCollege', collegeVal);
         localStorage.setItem('studentBranch', branchVal);
         localStorage.setItem('studentYear', yearVal);
