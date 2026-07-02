@@ -219,7 +219,7 @@
                 <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHTML(entry.srn || entry.usn || '')}</div>
               </td>
               <td style="color: var(--text-secondary); font-size: 0.9rem;">${escapeHTML(entry.branch || '—')}</td>
-              <td style="text-align: right; font-weight: 800; font-size: 1.1rem; color: ${getScoreColor(entry.score)}">${entry.score}/100</td>
+              <td style="text-align: right; font-weight: 800; font-size: 1.1rem; color: ${getScoreColor(entry.score)}">${entry.score}</td>
               <td style="text-align: right; color: var(--text-secondary); font-size: 0.85rem; padding-right: 1.5rem;">${dateStr}</td>
             `;
             tableBody.appendChild(tr);

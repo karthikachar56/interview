@@ -165,7 +165,7 @@
               </div>
               <div style="margin-top: auto; padding-top: 1rem; border-top: 2px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
                 <strong style="color: white;">Overall Score</strong>
-                <span id="valOverall" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-primary);">82/100</span>
+                <span id="valOverall" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-primary);">82</span>
               </div>
               <button id="endInterviewAdminBtn" class="btn-danger" style="width: 100%; margin-top: 1rem; padding: 0.5rem; font-size: 0.85rem;">
                 🛑 End Interview &amp; Send Score
@@ -235,7 +235,7 @@
       
       document.getElementById('valFace').textContent = `${metrics.faceExpression}/10`;
       document.getElementById('valUnderstand').textContent = `${metrics.questionUnderstand}/10`;
-      document.getElementById('valOverall').textContent = `${metrics.overallScore}/100`;
+      document.getElementById('valOverall').textContent = `${metrics.overallScore}`;
     }
 
     updateMetricsUI();

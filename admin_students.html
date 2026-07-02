@@ -173,7 +173,7 @@
           const statusClass = statusColors[s.status] || 'status-waiting';
 
           const scoreCol = s.score !== undefined
-            ? `<span style="font-weight: 700; font-size: 1.1rem; color: ${getScoreColor(s.score)}">${s.score}/100</span>`
+            ? `<span style="font-weight: 700; font-size: 1.1rem; color: ${getScoreColor(s.score)}">${s.score}</span>`
             : `<span style="color: var(--text-secondary)">—</span>`;
 
           const reportBtn = s.score !== undefined

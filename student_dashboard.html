@@ -77,7 +77,7 @@
         <div class="stats-lbl">Interviews Done</div>
       </div>
       <div class="glass-panel stats-card" id="scoreCard" style="display: none;">
-        <div class="stats-val" id="latestScore">0/100</div>
+        <div class="stats-val" id="latestScore">0</div>
         <div class="stats-lbl">Latest Score</div>
       </div>
     </div>
@@ -138,7 +138,7 @@
           if (latest.score !== undefined && latest.score !== null) {
             const scoreVal = latest.score;
             const scoreEl = document.getElementById('latestScore');
-            scoreEl.textContent = `${scoreVal}/100`;
+            scoreEl.textContent = `${scoreVal}`;
 
             // score color coloring
             if (scoreVal >= 80) {
