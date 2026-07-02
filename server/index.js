@@ -511,8 +511,7 @@ async function runBackgroundEvaluation(sessionId, transcript, vallyMetricsHistor
     let score = Math.min(100, Math.max(0, calculatedTotalScore));
     let feedback = 'Good effort. Keep practicing to improve your interview skills.';
     let strengths = [
-      { title: 'Willingness to Engage', detail: 'You showed great enthusiasm and active participation in answering the questions throughout the session.' },
-      { title: 'Attempted Questions', detail: 'You attempted to answer every question asked, demonstrating commitment and endurance.' }
+      { title: 'Willingness to Engage', detail: 'You showed great enthusiasm and active participation in answering the questions throughout the session.' }
     ];
     let improvements = [
       { title: 'Technical Depth', detail: 'Focus on providing deeper technical context and explaining underlying architectural concepts in your answers.' },
