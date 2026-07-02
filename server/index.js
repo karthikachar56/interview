@@ -858,6 +858,26 @@ async function startServer() {
     };
 
     try {
+      let existingSession = null;
+      if (mongoUnavailable) {
+        existingSession = backupSessions.find(s => (s.srn === finalSrn || s.usn === finalSrn) && s.password);
+      } else {
+        const client = await connectDb();
+        if (client) {
+          const db = client.db(DB_NAME);
+          existingSession = await db.collection('interviewsessions').findOne(
+            { $or: [{ srn: finalSrn }, { usn: finalSrn }], password: { $ne: null } },
+            { sort: { startTime: -1 } }
+          );
+        }
+      }
+
+      if (existingSession && existingSession.password) {
+        if (!password || existingSession.password !== password) {
+          return res.status(400).json({ error: "This SRN is already registered. Please log in instead." });
+        }
+      }
+
       if (mongoUnavailable) {
         backupSessions = backupSessions.filter(s => s.sessionId !== sessionId);
         backupSessions.unshift(doc);
@@ -951,6 +971,34 @@ async function startServer() {
       });
     } catch (err) {
       console.error('/api/student/login error:', err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // check if SRN is already registered
+  app.get('/api/student/check-srn', async (req, res) => {
+    const srn = req.query.srn;
+    const finalSrn = (srn || '').trim().toUpperCase();
+    if (!finalSrn) return res.status(400).json({ error: "Missing srn" });
+
+    try {
+      let exists = false;
+      if (mongoUnavailable) {
+        exists = backupSessions.some(s => (s.srn === finalSrn || s.usn === finalSrn) && s.password);
+      } else {
+        const client = await connectDb();
+        if (client) {
+          const db = client.db(DB_NAME);
+          const count = await db.collection('interviewsessions').countDocuments({
+            $or: [{ srn: finalSrn }, { usn: finalSrn }],
+            password: { $ne: null }
+          });
+          exists = count > 0;
+        }
+      }
+      res.json({ exists });
+    } catch (err) {
+      console.error('/api/student/check-srn error:', err);
       res.status(500).json({ error: "Internal server error" });
     }
   });

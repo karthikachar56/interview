@@ -308,6 +308,24 @@
           return;
         }
 
+        // Verify if SRN is already registered
+        try {
+          const checkRes = await fetch(`/api/student/check-srn?srn=${encodeURIComponent(srnVal)}`);
+          if (!checkRes.ok) {
+            throw new Error('Verification failed.');
+          }
+          const checkData = await checkRes.json();
+          if (checkData.exists) {
+            throw new Error('This SRN is already registered. Please log in instead.');
+          }
+        } catch (checkErr) {
+          errorBox.textContent = `⚠️ ${checkErr.message}`;
+          errorBox.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Proceed to Setup →';
+          return;
+        }
+
         const collegeVal = document.getElementById('college').value.trim();
         const branchVal = document.getElementById('branch').value.trim();
         const yearVal = document.getElementById('year').value;
