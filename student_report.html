@@ -109,26 +109,26 @@
         </div>
       </section>
 
-      <!-- Right side: Feedback list -->
-      <section class="glass-panel" style="padding: 2rem;">
-        <h2 style="margin-bottom: 1.5rem;">Actionable Feedback</h2>
-        <ul class="feedback-list" id="feedbackList">
-          <!-- Strengths and improvements go here -->
-        </ul>
+      <!-- Behavioral Metrics -->
+      <section class="glass-panel" style="padding: 2rem; display: none;" id="metricsSection">
+        <h2 style="margin-bottom: 1.5rem; color: var(--text-primary);">Behavioral & Vally Metrics</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+          <div style="text-align: center; padding: 0.5rem; background: rgba(15, 23, 42, 0.02); border-radius: 0.5rem;"><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent-primary);" id="repConfidence">--</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Confidence</div></div>
+          <div style="text-align: center; padding: 0.5rem; background: rgba(15, 23, 42, 0.02); border-radius: 0.5rem;"><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent-primary);" id="repVocabulary">--</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Vocabulary</div></div>
+          <div style="text-align: center; padding: 0.5rem; background: rgba(15, 23, 42, 0.02); border-radius: 0.5rem;"><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent-primary);" id="repAnswering">--</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Answering</div></div>
+          <div style="text-align: center; padding: 0.5rem; background: rgba(15, 23, 42, 0.02); border-radius: 0.5rem;"><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent-primary);" id="repNervousness">--</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Nervousness</div></div>
+          <div style="text-align: center; padding: 0.5rem; background: rgba(15, 23, 42, 0.02); border-radius: 0.5rem;"><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent-primary);" id="repFace">--</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Face Expression</div></div>
+          <div style="text-align: center; padding: 0.5rem; background: rgba(15, 23, 42, 0.02); border-radius: 0.5rem;"><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent-primary);" id="repUnderstand">--</div><div style="font-size: 0.75rem; color: var(--text-secondary);">Understanding</div></div>
+        </div>
       </section>
     </main>
 
-    <!-- Behavioral Metrics -->
-    <section class="glass-panel" style="padding: 2rem; margin-top: 2rem; display: none;" id="metricsSection">
-      <h2 style="margin-bottom: 1.5rem; color: var(--text-primary);">Behavioral & Vally Metrics</h2>
-      <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 1rem;">
-        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repConfidence">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Confidence</div></div>
-        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repVocabulary">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Vocabulary</div></div>
-        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repAnswering">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Answering</div></div>
-        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repNervousness">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Nervousness</div></div>
-        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repFace">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Face Expression</div></div>
-        <div style="text-align: center;"><div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-primary);" id="repUnderstand">--</div><div style="font-size: 0.85rem; color: var(--text-secondary);">Understanding</div></div>
-      </div>
+    <!-- Actionable Feedback -->
+    <section class="glass-panel" style="padding: 2rem; margin-top: 2rem;" id="feedbackSection">
+      <h2 style="margin-bottom: 1.5rem;">Actionable Feedback</h2>
+      <ul class="feedback-list" id="feedbackList">
+        <!-- Strengths and improvements go here -->
+      </ul>
     </section>
 
     <!-- Footer buttons -->
