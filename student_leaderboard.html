@@ -238,8 +238,14 @@
     }
 
     // Button Click listeners
-    document.getElementById('backBtn').addEventListener('click', () => {
-      window.location.href = '/student_dashboard.html';
+    const hasSession = localStorage.getItem('studentSrn') || localStorage.getItem('studentUsn');
+    const backBtn = document.getElementById('backBtn');
+    if (!hasSession) {
+      backBtn.textContent = '← Home';
+    }
+
+    backBtn.addEventListener('click', () => {
+      window.location.href = hasSession ? '/student_dashboard.html' : '/index.html';
     });
 
     document.getElementById('startBtn').addEventListener('click', () => {
