@@ -311,7 +311,14 @@
     });
 
     startBtn.addEventListener('click', () => {
-      window.location.href = '/student_room.html';
+      const width = window.screen.width;
+      const height = window.screen.height;
+      const popup = window.open('/student_room.html', 'ai_mock_interview', `width=${width},height=${height},popup=yes,menubar=no,toolbar=no,location=no,status=no,resizable=no,scrollbars=yes`);
+      if (!popup) {
+        alert("Please enable popups in your browser settings to launch the secure interview window.");
+      } else {
+        window.location.href = '/student_dashboard.html';
+      }
     });
   </script>
 </body>

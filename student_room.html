@@ -7,9 +7,47 @@
   <link rel="icon" type="image/jpeg" href="/eetirp-icon.jpeg">
   <link rel="stylesheet" href="/student.css">
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-
+  <style>
+    .chat-bubble.system {
+      background: rgba(220, 38, 38, 0.1) !important;
+      border: 1px solid rgba(220, 38, 38, 0.3) !important;
+      color: var(--accent-danger) !important;
+      font-weight: 600;
+      align-self: center;
+      width: 100%;
+      text-align: center;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+    }
+  </style>
 </head>
 <body>
+  <!-- Cheating Warning Overlay Modal -->
+  <div id="cheatingWarningOverlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 2rem;">
+    <div class="glass-panel" style="max-width: 500px; width: 100%; padding: 2.5rem; text-align: center; border: 2px solid var(--accent-danger); box-shadow: 0 0 30px rgba(220, 38, 38, 0.25);">
+      <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚠️</div>
+      <h2 style="color: var(--accent-danger); font-size: 1.75rem; margin-bottom: 0.75rem;">Security Violation</h2>
+      <p id="cheatingWarningText" style="color: var(--text-primary); line-height: 1.6; margin-bottom: 2rem; text-align: center;">
+        Tab switch or window focus loss detected. Please stay on this screen. Accidental navigation or exiting is not allowed during the session.
+      </p>
+      <button class="btn-primary" id="resumeCheatingBtn" style="background: var(--accent-danger); width: 100%; font-size: 1.05rem; padding: 0.875rem;">
+        I Understand & Resume
+      </button>
+    </div>
+  </div>
+  <!-- Fullscreen Request Overlay Modal -->
+  <div id="fullscreenRequestOverlay" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 10000; align-items: center; justify-content: center; padding: 2rem; display: flex;">
+    <div class="glass-panel" style="max-width: 600px; width: 100%; padding: 3rem; text-align: center; border: 2px solid var(--accent-primary); box-shadow: var(--glass-shadow);">
+      <div style="font-size: 4rem; margin-bottom: 1.5rem;">🔒</div>
+      <h2 style="color: var(--accent-primary); font-size: 2rem; margin-bottom: 1rem;">Secure Examination Mode</h2>
+      <p style="color: var(--text-primary); line-height: 1.6; margin-bottom: 2.5rem; text-align: center; font-size: 1.1rem;">
+        This mock interview requires Secure Fullscreen Mode.<br><br>Once started, you cannot switch tabs, minimize this window, or exit fullscreen. Exiting fullscreen at any time will result in instant disqualification.
+      </p>
+      <button class="btn-primary" id="enterSecureModeBtn" style="width: 100%; font-size: 1.2rem; padding: 1rem 2rem;">
+        Enable Secure Mode & Start
+      </button>
+    </div>
+  </div>
   <div class="room-container">
     <!-- Admin takeover overlay indicator -->
     <div id="adminTakeoverAlert" style="display: none; background: var(--accent-danger); color: white; text-align: center; padding: 0.5rem; fontWeight: bold; border-radius: 0.5rem; fontSize: 0.875rem; margin-bottom: 0.5rem;">
@@ -363,6 +401,7 @@
     let _ttsGcGuard = []; // prevents Chrome GC from destroying utterance mid-speech
 
     function speakAndListen(text) {
+      interviewActive = true;
       isAIActive = true;
       isRecordingAnswer = false;
       currentQuestionText = text;
@@ -735,8 +774,10 @@
         const bubble = document.createElement('div');
         bubble.className = `chat-bubble ${msg.role}`;
         
-        const label = msg.role === 'ai' ? 'AI Interviewer' : msg.role === 'admin' ? '👤 Admin' : 'You';
-        bubble.innerHTML = `<strong>${label}: </strong><span>${escapeHTML(msg.text)}</span>`;
+        const label = msg.role === 'ai' ? 'AI Interviewer' : msg.role === 'admin' ? '👤 Admin' : msg.role === 'system' ? '⚠️ System' : 'You';
+        bubble.innerHTML = msg.role === 'system' 
+          ? `<strong>${label}: </strong><span>${msg.text}</span>`
+          : `<strong>${label}: </strong><span>${escapeHTML(msg.text)}</span>`;
         transcriptBox.insertBefore(bubble, transcriptEnd);
       });
 
@@ -1199,7 +1240,7 @@
         console.error("Failed to log completion:", err);
       }
 
-      window.location.href = `/student_report.html?sessionId=${encodeURIComponent(sessionId)}`;
+      redirectOpenerAndClose(`/student_report.html?sessionId=${encodeURIComponent(sessionId)}`);
     }
 
     endBtn.addEventListener('click', () => {
@@ -1222,10 +1263,196 @@
       // Re-trigger voice lists loading
     };
     
-    initWebSocket();
-    initMedia();
-    initSpeechRecognition();
-    startInterview();
+    document.getElementById('enterSecureModeBtn').addEventListener('click', () => {
+      document.documentElement.requestFullscreen().then(() => {
+        document.getElementById('fullscreenRequestOverlay').style.display = 'none';
+        
+        initWebSocket();
+        initMedia();
+        initSpeechRecognition();
+        startInterview();
+      }).catch(err => {
+        console.warn("Fullscreen request failed:", err);
+        alert("Fullscreen mode is required to proceed in secure exam mode.");
+      });
+    });
+
+    // Cheating Prevention & Tab Switch Detection Logic
+    let interviewActive = false;
+    let cheatingWarnings = 0;
+    const MAX_WARNINGS = 1;
+
+    // Block accidental tab closures, reloads, and navigation
+    window.addEventListener('beforeunload', (e) => {
+      if (!isEnding) {
+        e.preventDefault();
+        e.returnValue = 'Are you sure you want to leave? Your interview progress will be lost and this action will be flagged.';
+        return e.returnValue;
+      }
+    });
+
+    function showCheatingWarningOverlay(count, details) {
+      const overlay = document.getElementById('cheatingWarningOverlay');
+      const textEl = document.getElementById('cheatingWarningText');
+      const resumeBtn = document.getElementById('resumeCheatingBtn');
+      
+      let msg = `<strong>Violation Reason:</strong> ${escapeHTML(details)}<br><br>`;
+      if (count >= MAX_WARNINGS) {
+        msg += `<span style="color: var(--accent-danger); font-weight: bold;">DISQUALIFIED!</span><br>Security violation detected (tab switched or focus lost). The session is being terminated immediately.`;
+        resumeBtn.style.display = 'none';
+        
+        setTimeout(() => {
+          terminateInterviewDueToCheating();
+        }, 3000);
+      } else {
+        msg += `Accidental navigation, tab switching, or window focus loss is not permitted.`;
+        resumeBtn.style.display = 'block';
+      }
+      
+      textEl.innerHTML = msg;
+      overlay.style.display = 'flex';
+      
+      // Acknowledge by pausing speaking and listening
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      safeStopRecognition();
+    }
+
+    function handleCheatingViolation(details) {
+      if (isEnding || !interviewActive) return;
+
+      cheatingWarnings++;
+      
+      // Append warning log message directly to transcript
+      transcript.push({ role: 'system', text: `[WARNING]: Tab switch / window focus loss detected (${details}) (Violation #${cheatingWarnings})` });
+      renderTranscriptBubbles();
+
+      // Sync warning count to the server
+      fetch('/api/interview/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, cheatingWarnings })
+      }).catch(err => console.warn('Failed to sync cheating warning count:', err));
+
+      // Broadcast warning via WebSocket to observing admin channel
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'cheating_warning',
+          count: cheatingWarnings,
+          details: details
+        }));
+      }
+
+      showCheatingWarningOverlay(cheatingWarnings, details);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        handleCheatingViolation('Tab switched / window minimized');
+      }
+    });
+
+    window.addEventListener('blur', () => {
+      // Blur can sometimes fire when clicking browser controls, but is generally indicative of focus loss.
+      // We wrap it in a micro-delay to ensure visibilitychange hasn't already handled it.
+      setTimeout(() => {
+        if (document.visibilityState !== 'hidden') {
+          handleCheatingViolation('Lost window focus / selected other application');
+        }
+      }, 100);
+    });
+
+    document.getElementById('resumeCheatingBtn').addEventListener('click', () => {
+      document.getElementById('cheatingWarningOverlay').style.display = 'none';
+      if (isRecordingAnswer && !isEnding) {
+        startListening();
+      } else if (isAIActive && !isEnding) {
+        speakAndListen(currentQuestionText);
+      }
+    });
+
+    async function terminateInterviewDueToCheating() {
+      if (isEnding) return;
+      isEnding = true;
+      
+      clearInterval(timerInterval);
+      clearInterval(takeoverPoll);
+      if (captureTimer) clearInterval(captureTimer);
+
+      questionText.textContent = "Disqualified. Saving state...";
+      interviewerStateLabel.textContent = "Disqualified";
+      
+      safeStopRecognition();
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      
+      // Stop media tracks safely
+      try {
+        if (localStream && typeof localStream.getTracks === 'function') {
+          localStream.getTracks().forEach(track => {
+            try { track.stop(); } catch(e){}
+          });
+        }
+      } catch (err) {}
+
+      try {
+        if (screenStream && typeof screenStream.getTracks === 'function') {
+          screenStream.getTracks().forEach(track => {
+            try { track.stop(); } catch(e){}
+          });
+        }
+      } catch (err) {}
+
+      try {
+        if (peer && typeof peer.destroy === 'function') {
+          peer.destroy();
+        }
+      } catch (err) {}
+
+      try {
+        // Sync final warnings to DB session
+        await fetch('/api/interview/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, cheatingWarnings: 1, status: 'completed' })
+        });
+
+        // Fire-and-forget background fetch with keepalive to save transcript containing system warning logs
+        await fetch('/api/interview/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, transcript: transcript, vallyMetricsHistory: clientVallyMetricsHistory }),
+          keepalive: true
+        });
+      } catch (err) {
+        console.error("Failed to complete disqualified interview:", err);
+      }
+
+      redirectOpenerAndClose(`/student_report.html?sessionId=${encodeURIComponent(sessionId)}`);
+    }
+
+    function redirectOpenerAndClose(url) {
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.location.href = url;
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+          }
+          setTimeout(() => {
+            window.close();
+          }, 400);
+          return;
+        } catch (e) {
+          console.warn("Opener redirect failed, using fallback:", e);
+        }
+      }
+      window.location.href = url;
+    }
+
+    // Monitor Fullscreen Exit
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && !isEnding && interviewActive) {
+        handleCheatingViolation('Exited fullscreen secure mode');
+      }
+    });
   </script>
 </body>
 </html>

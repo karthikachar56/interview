@@ -91,6 +91,11 @@
       </p>
     </header>
 
+    <div id="disqualifiedAlert" style="display: none; background: rgba(239, 68, 68, 0.1); border: 2px solid var(--accent-danger); border-radius: 0.5rem; color: var(--accent-danger); padding: 1rem; text-align: center; font-weight: bold; margin-bottom: 2rem; font-size: 1.1rem; line-height: 1.5;">
+      ⚠️ DISQUALIFIED DUE TO SECURITY VIOLATIONS<br>
+      <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-secondary);">Multiple tab switches or window focus loss occurrences were detected during this session. Your results have been invalidated.</span>
+    </div>
+
     <main class="report-grid">
       <!-- Left side: Score Card -->
       <section class="glass-panel" style="padding: 2rem;">
@@ -212,15 +217,23 @@
 
       // Overall Score Progress Circle
       const score = session.score ?? 0;
+      const warningsCount = session.cheatingWarnings ?? 0;
+      const isDisqualified = warningsCount >= 3;
+      
       const circumference = 2 * Math.PI * 54; // = 339.292
-      const offset = circumference - (score / 100) * circumference;
+      const finalScore = isDisqualified ? 0 : score;
+      const offset = circumference - (finalScore / 100) * circumference;
 
       const circle = document.getElementById('scoreProgressCircle');
       circle.style.strokeDashoffset = offset;
 
       let scoreColor = '#ef4444'; // default red
       let verdict = 'Keep Practicing 💪';
-      if (score >= 80) {
+      if (isDisqualified) {
+        scoreColor = '#dc2626'; // dark red
+        verdict = 'DISQUALIFIED ❌';
+        document.getElementById('disqualifiedAlert').style.display = 'block';
+      } else if (score >= 80) {
         scoreColor = '#10b981'; // green
         verdict = 'Strong Performance 🎉';
       } else if (score >= 60) {
@@ -231,7 +244,7 @@
       circle.style.stroke = scoreColor;
       
       const scoreText = document.getElementById('scoreText');
-      scoreText.textContent = score;
+      scoreText.textContent = finalScore;
       scoreText.style.color = scoreColor;
 
       const verdictEl = document.getElementById('scoreVerdict');

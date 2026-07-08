@@ -56,6 +56,10 @@
     <!-- Main Workspace -->
     <main class="admin-main" style="padding: 0;">
       <div class="admin-room-wrapper animate-fade-in-up">
+        <!-- Cheating Warning Banner Alert -->
+        <div id="cheatingWarningAlert" style="display: none; background: #ea580c; color: white; text-align: center; padding: 0.75rem; font-weight: bold; border-radius: 0.5rem; font-size: 0.9rem; margin-bottom: 1rem; animation: pulse-bg 1.5s infinite;">
+          ⚠️ SECURITY WARNING: Candidate has tab-switched or lost window focus! (Disqualification limit: 1 violation)
+        </div>
         <!-- Top Half -->
         <div class="admin-room-top">
           <!-- Webcam & Screen streams panel -->
@@ -345,6 +349,19 @@
         if (data.session) {
           const s = data.session;
 
+          if (s.cheatingWarnings !== undefined && s.cheatingWarnings > 0) {
+            const banner = document.getElementById('cheatingWarningAlert');
+            if (banner) {
+              if (s.cheatingWarnings >= 1) {
+                banner.innerHTML = `⚠️ SECURITY VIOLATION: Candidate has been DISQUALIFIED for tab-switching / focus loss (Disqualified)`;
+                banner.style.background = 'var(--accent-danger)';
+              } else {
+                banner.innerHTML = `⚠️ SECURITY WARNING: Candidate has tab-switched or lost window focus! (Disqualified on 1st violation)`;
+              }
+              banner.style.display = 'block';
+            }
+          }
+
           if (s.status === 'completed' && !isEnding) {
             isEnding = true;
             try {
@@ -624,6 +641,8 @@
           const message = JSON.parse(event.data);
           if (message.type === 'draft') {
             handleLiveDraft(message.text);
+          } else if (message.type === 'cheating_warning') {
+            handleCheatingWarningWS(message.count, message.details);
           }
         } catch (err) {
           console.warn('WS parse error:', err);
@@ -680,6 +699,19 @@
         if (draftDiv) {
           draftDiv.remove();
         }
+      }
+    }
+
+    function handleCheatingWarningWS(count, details) {
+      const banner = document.getElementById('cheatingWarningAlert');
+      if (banner) {
+        if (count >= 1) {
+          banner.innerHTML = `⚠️ SECURITY VIOLATION: Candidate has been DISQUALIFIED for tab-switching / focus loss (Disqualified)`;
+          banner.style.background = 'var(--accent-danger)';
+        } else {
+          banner.innerHTML = `⚠️ SECURITY WARNING: Candidate has tab-switched or lost window focus! (Disqualified on 1st violation)`;
+        }
+        banner.style.display = 'block';
       }
     }
 

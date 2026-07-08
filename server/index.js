@@ -470,21 +470,32 @@ async function runBackgroundEvaluation(sessionId, transcript, vallyMetricsHistor
 
     let savedVallyMetrics = null;
     let historyForScore = vallyMetricsHistory || [];
+    let warningsCount = 0;
 
-    // Try to load the latest vallyMetricsHistory from the DB/fallback if possible
+    // Try to load the latest vallyMetricsHistory and cheatingWarnings from the DB/fallback if possible
     try {
       if (mongoUnavailable) {
         const s = backupSessions.find(x => x.sessionId === sessionId);
-        if (s && s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
-          historyForScore = s.vallyMetricsHistory;
+        if (s) {
+          if (s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
+            historyForScore = s.vallyMetricsHistory;
+          }
+          if (s.cheatingWarnings !== undefined) {
+            warningsCount = s.cheatingWarnings;
+          }
         }
       } else {
         const client = await connectDb();
         if (client) {
           const db = client.db(DB_NAME);
           const s = await db.collection('interviewsessions').findOne({ sessionId });
-          if (s && s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
-            historyForScore = s.vallyMetricsHistory;
+          if (s) {
+            if (s.vallyMetricsHistory && s.vallyMetricsHistory.length > historyForScore.length) {
+              historyForScore = s.vallyMetricsHistory;
+            }
+            if (s.cheatingWarnings !== undefined) {
+              warningsCount = s.cheatingWarnings;
+            }
           }
         }
       }
@@ -518,7 +529,16 @@ async function runBackgroundEvaluation(sessionId, transcript, vallyMetricsHistor
       { title: 'Clear Explanations', detail: 'Practice structuring your explanations step-by-step to improve clarity and logical coherence.' }
     ];
 
-    if (!hasStudentAnswers) {
+    if (warningsCount >= 1) {
+      score = 0;
+      feedback = 'The candidate was disqualified due to tab switching / window focus loss during the interview.';
+      strengths = [
+        { title: 'N/A', detail: 'No strengths recorded due to disqualification.' }
+      ];
+      improvements = [
+        { title: 'Adhere to Guidelines', detail: 'Ensure you remain on the interview screen without switching tabs or losing window focus.' }
+      ];
+    } else if (!hasStudentAnswers) {
       score = 0;
       feedback = 'The candidate exited the interview without providing any answers.';
     } else {
@@ -1186,13 +1206,14 @@ async function startServer() {
   });
 
   app.post('/api/interview/sync', async (req, res) => {
-    const { sessionId, mode, adminMessage, studentAnswer, status, aiStatus, round, score } = req.body;
+    const { sessionId, mode, adminMessage, studentAnswer, status, aiStatus, round, score, cheatingWarnings } = req.body;
     if (!sessionId) return res.status(400).json({ error: "Missing sessionId" });
 
     const updates = {};
     if (mode !== undefined) updates.mode = mode;
     if (adminMessage !== undefined) updates.adminMessage = adminMessage;
     if (studentAnswer !== undefined) updates.studentAnswer = studentAnswer;
+    if (cheatingWarnings !== undefined) updates.cheatingWarnings = Number(cheatingWarnings);
     if (status !== undefined) {
       updates.status = status;
       if (status === 'completed') {
@@ -1535,6 +1556,18 @@ app.get('/api/preview/:id', async (req, res) => {
           if (!text) return;
           console.log(`ws draft: session=${ws.sessionId} length=${text.length}`);
           broadcastDraft(ws.sessionId, text);
+        }
+
+        if (message.type === 'cheating_warning' && ws.role === 'candidate' && ws.sessionId) {
+          const { count, details } = message;
+          console.log(`ws cheating_warning: session=${ws.sessionId} count=${count} details=${details}`);
+          const session = getSession(ws.sessionId);
+          const msg = JSON.stringify({ type: 'cheating_warning', count, details });
+          for (const adminWs of session.admins) {
+            if (adminWs.readyState === 1) {
+              try { adminWs.send(msg); } catch (e) { console.warn("Failed to notify admin via WS cheating_warning:", e.message); }
+            }
+          }
         }
       } catch (err) {
         console.warn('ws parse error:', err.message);
