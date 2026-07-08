@@ -216,7 +216,7 @@
           }
         } catch (err) {
           console.error(err);
-          alert('Network error. Please try again.');
+          alert(err.message || 'Network error. Please try again.');
           resetUI();
         }
       });
