@@ -16,6 +16,14 @@
       grid-template-columns: 1fr 1fr;
       gap: 2rem;
     }
+    .report-grid.centered-layout {
+      grid-template-columns: 1fr;
+      justify-items: center;
+    }
+    .report-grid.centered-layout > section {
+      width: 100%;
+      max-width: 600px;
+    }
     .score-circle-container {
       position: relative;
       width: 128px;
@@ -316,7 +324,9 @@
       });
 
       // Render Behavioral Metrics if available
+      const grid = document.querySelector('.report-grid');
       if (session.vallyMetrics) {
+        if (grid) grid.classList.remove('centered-layout');
         document.getElementById('metricsSection').style.display = 'block';
         document.getElementById('repConfidence').textContent = `${session.vallyMetrics.confidence}/10`;
         document.getElementById('repVocabulary').textContent = `${session.vallyMetrics.vocabulary}/10`;
@@ -324,6 +334,9 @@
         document.getElementById('repNervousness').textContent = `${session.vallyMetrics.nervousness}/10`;
         document.getElementById('repFace').textContent = `${session.vallyMetrics.faceExpression}/10`;
         document.getElementById('repUnderstand').textContent = `${session.vallyMetrics.questionUnderstand}/10`;
+      } else {
+        if (grid) grid.classList.add('centered-layout');
+        document.getElementById('metricsSection').style.display = 'none';
       }
     }
 
