@@ -75,7 +75,10 @@
 
   <div class="setup-container animate-fade-in-up">
     <div class="glass-panel" style="padding: 3rem; text-align: center;">
-      <h1 class="text-gradient" style="font-size: 2rem; margin-bottom: 1rem;">Interview Pre-Check</h1>
+      <div class="badge" id="levelInfoBadge" style="margin-bottom: 0.75rem; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); color: var(--accent-primary); padding: 0.35rem 1rem; border-radius: 2rem; display: inline-block; font-weight: 700; font-size: 0.85rem;">
+        🎯 Round & Level Loading...
+      </div>
+      <h1 class="text-gradient" style="font-size: 2rem; margin-bottom: 0.5rem;">Interview Pre-Check</h1>
       <p style="margin-bottom: 2rem;">We need to check your camera, microphone, and connection before starting.</p>
       
       <!-- Check Status Board -->
@@ -148,6 +151,13 @@
     const sessionId = localStorage.getItem('currentSessionId');
     if (!sessionId) {
       window.location.href = '/student_registration.html';
+    }
+
+    const activeRound = localStorage.getItem('selectedRound') || 'Basic Introduction';
+    const activeLevel = localStorage.getItem('selectedLevel') || '1';
+    const badgeEl = document.getElementById('levelInfoBadge');
+    if (badgeEl) {
+      badgeEl.textContent = `🎯 ${activeRound} — Level ${activeLevel} (10 Questions)`;
     }
 
     const checkBtn = document.getElementById('checkBtn');

@@ -250,7 +250,7 @@ function shuffleArray(array) {
   return array;
 }
 
-async function get10RandomQuestionsForRound(round) {
+async function get10QuestionsForRoundAndLevel(round, level = 1) {
   const normalizedRound = String(round || 'Technical Round').trim();
   let questionsObj = null;
 
@@ -274,22 +274,28 @@ async function get10RandomQuestionsForRound(round) {
     return ["Can you tell me about yourself?", "What is your biggest achievement?", "What is your greatest strength?"];
   }
 
-  // Try exact match or normalized match
-  let poolKey = Object.keys(questionsObj).find(k => k.toLowerCase().replace(/\s+/g, '') === normalizedRound.toLowerCase().replace(/\s+/g, ''));
-  if (!poolKey || poolKey === '_id') poolKey = Object.keys(questionsObj).find(k => k !== '_id');
+  // Try exact match or normalized match ignoring _id
+  let poolKey = Object.keys(questionsObj).find(k => k !== '_id' && k.toLowerCase().replace(/\s+/g, '') === normalizedRound.toLowerCase().replace(/\s+/g, ''));
+  if (!poolKey) poolKey = Object.keys(questionsObj).find(k => k !== '_id') || 'Basic Introduction';
 
   const pool = questionsObj[poolKey] || [];
   if (pool.length === 0) return ["Can you tell me about yourself?", "What is your biggest achievement?", "What is your greatest strength?"];
-  
-  const shuffled = shuffleArray([...pool]);
-  
-  if (normalizedRound.toLowerCase().includes('basic introduction')) {
+
+  const numLevel = Math.max(1, Math.min(25, parseInt(level) || 1));
+  const startIndex = (numLevel - 1) * 10;
+
+  let levelQuestions = pool.slice(startIndex, startIndex + 10);
+  if (levelQuestions.length === 0) {
+    levelQuestions = pool.slice(0, 10);
+  }
+
+  if (normalizedRound.toLowerCase().includes('basic introduction') && numLevel === 1) {
     const forcedQuestion = "Can you tell me about yourself?";
-    const filtered = shuffled.filter(q => q.toLowerCase() !== forcedQuestion.toLowerCase());
+    const filtered = levelQuestions.filter(q => q.toLowerCase() !== forcedQuestion.toLowerCase());
     return [forcedQuestion, ...filtered].slice(0, 10);
   }
 
-  return shuffled.slice(0, 10);
+  return levelQuestions;
 }
 
 function getAdminAuth(req) {
@@ -329,30 +335,59 @@ async function generateContentWithRetry(promptConfig, maxRetries = 3, delayMs = 
 }
 
 async function evaluateAndCorrectResponse(sessionId, rawAnswer, questionAsked) {
-  let defaultMetrics = { confidence: 6, vocabulary: 6, answering: 6, nervousness: 6, faceExpression: 6, questionUnderstand: 6, answerScore: 6 };
+  const cleanAnswer = (rawAnswer || '').trim();
+  const lowerAnswer = cleanAnswer.toLowerCase();
+  
+  // Trivial/filler detector: "hi", "hello", "yes", "no", "idk", "pass", "ok", or 3 words or fewer
+  const fillerWords = ['hi', 'hello', 'hey', 'ok', 'okay', 'yes', 'no', 'yeah', 'idk', 'pass', 'don\'t know', 'dont know', 'skip', 'nothing', 'hm', 'hmm'];
+  const words = cleanAnswer.split(/\s+/).filter(w => w.length > 0);
+  const isTrivial = words.length <= 3 || fillerWords.includes(lowerAnswer);
+
+  let defaultMetrics = {
+    confidence: isTrivial ? 0 : 4,
+    vocabulary: isTrivial ? 0 : 4,
+    answering: isTrivial ? 0 : 4,
+    nervousness: isTrivial ? 8 : 4,
+    faceExpression: isTrivial ? 2 : 5,
+    questionUnderstand: isTrivial ? 0 : 4,
+    answerScore: isTrivial ? 0 : 4
+  };
+
   let result = {
     correctedText: rawAnswer,
     metrics: defaultMetrics
   };
 
-  if (!process.env.GEMINI_API_KEY || !rawAnswer || rawAnswer.trim().length === 0) {
+  if (!process.env.GEMINI_API_KEY || !rawAnswer || cleanAnswer.length === 0) {
     return result;
   }
 
-  const prompt = `You are an expert interview evaluator and speech-to-text transcription corrector.
+  const prompt = `You are an expert, strict interview evaluator and speech-to-text transcription corrector.
 Analyze this candidate response to the interview question.
 
 Context:
 Interviewer Asked: "${questionAsked}"
 Raw Transcription: "${rawAnswer}"
 
-Tasks:
-1. Correct obvious garbled/misheard words in the Raw Transcription. Make the text readable, correct words that sound similar but make no sense in context, and fix minor grammar errors. Keep the candidate's original meaning and style intact.
-2. Evaluate the candidate's performance on a scale of 0 to 10 for the following metrics:
-   "confidence", "vocabulary", "answering", "nervousness", "faceExpression", "questionUnderstand", "answerScore".
-   Note: "answerScore" measures the correctness of the answer to the question (10=perfect, 5=partial/half-correct, 0=wrong or no real answer).
+CRITICAL SCORING RULES:
+- If the candidate's answer is a trivial greeting, filler, refusal, or non-answer (e.g. "hi", "hello", "yes", "no", "idk", "pass", "ok", or very short irrelevant phrase under 5 words), you MUST score:
+  answerScore = 0
+  answering = 0
+  vocabulary = 0
+  confidence = 0
+  questionUnderstand = 0
+- "answerScore" measures how correctly, accurately, and completely the candidate answered the specific question:
+  10 = Perfect, highly detailed, accurate answer
+  5-7 = Average answer with partial detail
+  1-3 = Very weak or barely relevant answer
+  0 = Wrong, trivial greeting ("hi"), refusal ("idk"), or no actual answer provided.
 
-Respond ONLY with a valid JSON object in this exact format (no markdown blocks, no wrappers):
+Tasks:
+1. Correct obvious garbled/misheard words in the Raw Transcription.
+2. Evaluate performance on a scale of 0 to 10 for:
+   "confidence", "vocabulary", "answering", "nervousness", "faceExpression", "questionUnderstand", "answerScore".
+
+Respond ONLY with a valid JSON object in this exact format:
 {
   "correctedText": "<corrected transcript string>",
   "metrics": {
@@ -386,15 +421,23 @@ Respond ONLY with a valid JSON object in this exact format (no markdown blocks, 
     }
 
     if (parsed.metrics) {
-      const getMetric = (val) => (val === undefined || val === null || isNaN(Number(val))) ? 6 : Number(val);
+      const fallbackVal = isTrivial ? 0 : 4;
+      const getMetric = (val) => (val === undefined || val === null || isNaN(Number(val))) ? fallbackVal : Number(val);
+      
+      let answerScoreVal = isTrivial ? 0 : Math.min(10, Math.max(0, getMetric(parsed.metrics.answerScore)));
+      let answeringVal = isTrivial ? 0 : Math.min(10, Math.max(0, getMetric(parsed.metrics.answering)));
+      let vocabVal = isTrivial ? 0 : Math.min(10, Math.max(0, getMetric(parsed.metrics.vocabulary)));
+      let confidenceVal = isTrivial ? 0 : Math.min(10, Math.max(0, getMetric(parsed.metrics.confidence)));
+      let qUnderstandVal = isTrivial ? 0 : Math.min(10, Math.max(0, getMetric(parsed.metrics.questionUnderstand)));
+
       result.metrics = {
-        confidence: Math.min(10, Math.max(0, getMetric(parsed.metrics.confidence))),
-        vocabulary: Math.min(10, Math.max(0, getMetric(parsed.metrics.vocabulary))),
-        answering: Math.min(10, Math.max(0, getMetric(parsed.metrics.answering))),
+        confidence: confidenceVal,
+        vocabulary: vocabVal,
+        answering: answeringVal,
         nervousness: Math.min(10, Math.max(0, getMetric(parsed.metrics.nervousness))),
         faceExpression: Math.min(10, Math.max(0, getMetric(parsed.metrics.faceExpression))),
-        questionUnderstand: Math.min(10, Math.max(0, getMetric(parsed.metrics.questionUnderstand))),
-        answerScore: Math.min(10, Math.max(0, getMetric(parsed.metrics.answerScore)))
+        questionUnderstand: qUnderstandVal,
+        answerScore: answerScoreVal
       };
     }
 
@@ -1061,46 +1104,121 @@ async function startServer() {
     }
   });
 
+  // Get student level progress for a specific round
+  app.get('/api/student/levels', async (req, res) => {
+    try {
+      const srn = (req.query.srn || '').trim().toUpperCase();
+      const round = (req.query.round || 'Basic Introduction').trim();
+
+      if (!srn) return res.status(400).json({ error: 'Missing srn parameter' });
+
+      let completedSessions = [];
+
+      if (mongoUnavailable) {
+        completedSessions = backupSessions.filter(s =>
+          ((s.srn && s.srn.toUpperCase() === srn) || (s.usn && s.usn.toUpperCase() === srn)) &&
+          s.status === 'completed'
+        );
+      } else {
+        const client = await connectDb();
+        if (client) {
+          const db = client.db(DB_NAME);
+          completedSessions = await db.collection('interviewsessions')
+            .find({
+              $or: [{ srn }, { usn: srn }],
+              status: 'completed'
+            })
+            .toArray();
+        }
+      }
+
+      const completedLevels = {};
+      let highestPassedLevel = 0;
+
+      completedSessions.forEach(s => {
+        const sRound = String(s.round || '').trim().toLowerCase();
+        const targetRound = round.trim().toLowerCase();
+        if (sRound === targetRound || sRound.replace(/\s+/g, '') === targetRound.replace(/\s+/g, '')) {
+          const lvl = parseInt(s.level) || 1;
+          const scoreVal = (s.score !== undefined && s.score !== null) ? s.score : 0;
+          const passed = scoreVal >= 40;
+
+          if (!completedLevels[lvl] || ((s.score || 0) > (completedLevels[lvl].score || 0))) {
+            completedLevels[lvl] = {
+              score: scoreVal,
+              passed,
+              completedAt: s.completedAt
+            };
+          }
+
+          if (passed && lvl > highestPassedLevel) {
+            highestPassedLevel = lvl;
+          }
+        }
+      });
+
+      const highestUnlockedLevel = Math.min(25, highestPassedLevel + 1);
+
+      res.json({
+        srn,
+        round,
+        completedLevels,
+        highestUnlockedLevel: Math.max(1, highestUnlockedLevel)
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to fetch level progress' });
+    }
+  });
+
+
+
   // interview start
   app.post('/api/interview/start', async (req, res) => {
     try {
       const { sessionId } = req.body;
-      let round = "Technical Round";
+      let round = req.body.round || "Technical Round";
+      let level = 1;
 
       if (sessionId) {
         if (mongoUnavailable) {
           const s = backupSessions.find(x => x.sessionId === sessionId);
           if (s && s.round) round = s.round;
+          if (s && s.level) level = s.level;
         } else {
           const client = await connectDb();
           if (client) {
             const db = client.db(DB_NAME);
             const s = await db.collection('interviewsessions').findOne({ sessionId });
             if (s && s.round) round = s.round;
+            if (s && s.level) level = s.level;
           }
         }
       }
 
-      const questions = await get10RandomQuestionsForRound(round);
+      if (req.body.level) level = parseInt(req.body.level) || 1;
+
+      const questions = await get10QuestionsForRoundAndLevel(round, level);
       
-      // Save selected questions to the session
+      // Save selected questions and level to the session
       if (sessionId) {
         if (mongoUnavailable) {
           const s = backupSessions.find(x => x.sessionId === sessionId);
           if (s) {
             s.selectedQuestions = questions;
+            s.level = level;
             await saveSessionsFallback();
           }
         } else {
           const client = await connectDb();
           if (client) {
             const db = client.db(DB_NAME);
-            await db.collection('interviewsessions').updateOne({ sessionId }, { $set: { selectedQuestions: questions } });
+            await db.collection('interviewsessions').updateOne({ sessionId }, { $set: { selectedQuestions: questions, level } });
           }
         }
       }
 
-      res.json({ question: questions[0], round, selectedQuestions: questions });
+      res.json({ question: questions[0], round, level, selectedQuestions: questions });
     } catch (err) {
       console.error(err);
       res.json({ question: "Hello! Let's start with your background. Can you tell me about yourself?" });
@@ -1112,6 +1230,7 @@ async function startServer() {
     try {
       const { sessionId, history, selectedQuestions } = req.body;
       let round = "Technical Round";
+      let level = 1;
       let questions = selectedQuestions;
 
       if (!questions || questions.length === 0) {
@@ -1119,6 +1238,7 @@ async function startServer() {
           if (mongoUnavailable) {
             const s = backupSessions.find(x => x.sessionId === sessionId);
             if (s && s.round) round = s.round;
+            if (s && s.level) level = s.level;
             if (s && s.selectedQuestions) questions = s.selectedQuestions;
           } else {
             const client = await connectDb();
@@ -1126,6 +1246,7 @@ async function startServer() {
               const db = client.db(DB_NAME);
               const s = await db.collection('interviewsessions').findOne({ sessionId });
               if (s && s.round) round = s.round;
+              if (s && s.level) level = s.level;
               if (s && s.selectedQuestions) questions = s.selectedQuestions;
             }
           }
@@ -1133,7 +1254,7 @@ async function startServer() {
       }
 
       if (!questions || questions.length === 0) {
-        questions = await get10RandomQuestionsForRound(round);
+        questions = await get10QuestionsForRoundAndLevel(round, level);
       }
 
       const aiMessageCount = history.filter(msg => msg.role === 'ai' || msg.role === 'admin').length;
@@ -1206,7 +1327,7 @@ async function startServer() {
   });
 
   app.post('/api/interview/sync', async (req, res) => {
-    const { sessionId, mode, adminMessage, studentAnswer, status, aiStatus, round, score, cheatingWarnings } = req.body;
+    const { sessionId, mode, adminMessage, studentAnswer, status, aiStatus, round, level, score, cheatingWarnings } = req.body;
     if (!sessionId) return res.status(400).json({ error: "Missing sessionId" });
 
     const updates = {};
@@ -1222,6 +1343,7 @@ async function startServer() {
     }
     if (aiStatus !== undefined) updates.aiStatus = aiStatus;
     if (round !== undefined) updates.round = round;
+    if (level !== undefined) updates.level = parseInt(level) || 1;
     if (score !== undefined) {
       updates.score = score;
       updates.status = 'completed';

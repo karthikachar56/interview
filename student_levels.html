@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Level Matrix — AI Interview Room</title>
+  <link rel="icon" type="image/jpeg" href="/eetirp-icon.jpeg">
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .levels-container {
+      max-width: 1050px;
+      margin: 5rem auto 3rem;
+      padding: 0 1.5rem;
+    }
+    .levels-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .round-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 2rem;
+      background: rgba(139,92,246,0.15);
+      border: 1px solid rgba(139,92,246,0.3);
+      color: var(--accent-primary);
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    .progress-bar-container {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--glass-border);
+      border-radius: 1rem;
+      padding: 1.25rem 1.75rem;
+      margin-bottom: 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .progress-track {
+      flex: 1;
+      min-width: 200px;
+      height: 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981);
+      width: 0%;
+      transition: width 0.6s ease;
+    }
+
+    /* 25 Level Grid */
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 3rem;
+    }
+    .level-card {
+      position: relative;
+      padding: 1.25rem 1rem;
+      border-radius: 1rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 170px;
+      transition: all 0.25s ease;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    /* Unlocked Level */
+    .level-card.unlocked {
+      cursor: pointer;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.15);
+    }
+    .level-card.unlocked:hover {
+      transform: translateY(-4px) scale(1.03);
+      border-color: var(--accent-primary);
+      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.35);
+      background: rgba(30, 41, 59, 0.9);
+    }
+
+    /* Completed Level */
+    .level-card.completed {
+      border: 1px solid rgba(16, 185, 129, 0.5);
+      background: rgba(16, 185, 129, 0.08);
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
+    }
+    .level-card.completed:hover {
+      transform: translateY(-4px) scale(1.03);
+      border-color: #10b981;
+      box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+    }
+
+    /* Locked Level */
+    .level-card.locked {
+      cursor: not-allowed;
+      opacity: 0.5;
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      filter: grayscale(0.6);
+    }
+
+    .level-number {
+      font-size: 1.75rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+    .difficulty-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .diff-easy { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+    .diff-medium { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .diff-hard { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+    .diff-extreme { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    .level-icon {
+      font-size: 1.75rem;
+      margin: 0.35rem 0;
+    }
+
+    .level-btn {
+      width: 100%;
+      padding: 0.4rem 0.5rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-play {
+      background: var(--accent-primary);
+      color: #fff;
+    }
+    .btn-play:hover {
+      background: var(--accent-secondary);
+    }
+    .btn-passed {
+      background: rgba(16, 185, 129, 0.25);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .btn-locked {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-secondary);
+    }
+
+    .navigation-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--glass-border);
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Left Logo -->
+  <div class="floating-logo">
+    <a href="/student_dashboard.html">
+      <img src="/eetirp-icon.jpeg" alt="EETIRP Logo">
+    </a>
+  </div>
+
+  <div class="levels-container animate-fade-in-up">
+    <div class="glass-panel" style="padding: 2.5rem;">
+      
+      <!-- Header -->
+      <div class="levels-header">
+        <div class="round-badge" id="roundBadge">
+          <span id="roundIcon">🎯</span>
+          <span id="roundTitle">Basic Introduction</span>
+        </div>
+        <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem;">
+          25-Level Interview Matrix
+        </h1>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; max-width: 650px; margin: 0 auto;">
+          Pass each 10-question assessment to unlock higher levels. Questions increase progressively in difficulty from Level 1 (Easy) to Level 25 (Hardest)!
+        </p>
+      </div>
+
+      <!-- Level Progress Bar -->
+      <div class="progress-bar-container">
+        <div>
+          <div style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary);" id="progressText">
+            Level Progress: 1 / 25 Unlocked
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-secondary);" id="progressSub">
+            Complete Level 1 with 40%+ to unlock Level 2
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem; flex: 1; max-width: 350px;">
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill" style="width: 4%;"></div>
+          </div>
+          <span id="progressPercent" style="font-weight: 800; color: var(--accent-primary); font-size: 0.9rem;">4%</span>
+        </div>
+      </div>
+
+      <!-- 25 Level Boxes Grid -->
+      <div class="level-grid" id="levelGrid">
+        <!-- Javascript renders 25 game level cards here -->
+      </div>
+
+      <!-- Footer Navigation -->
+      <div class="navigation-bar">
+        <button class="btn-secondary" id="backRoundsBtn" style="padding: 0.6rem 1.5rem; font-size: 0.9rem;">
+          ← Switch Assessment Round
+        </button>
+        <button class="btn-secondary" id="dashboardBtn" style="padding: 0.6rem 1.5rem; font-size: 0.9rem;">
+          🚪 Return to Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const srn = localStorage.getItem('studentSrn') || localStorage.getItem('studentUsn');
+    const selectedRound = localStorage.getItem('selectedRound') || 'Basic Introduction';
+
+    if (!srn) {
+      window.location.href = '/student_registration.html';
+    }
+
+    // Set round title & icons
+    document.getElementById('roundTitle').textContent = selectedRound;
+    const icons = {
+      'Basic Introduction': '👋',
+      'Aptitude Round': '🧮',
+      'Technical Round': '💻',
+      'HR Round': '🤝'
+    };
+    document.getElementById('roundIcon').textContent = icons[selectedRound] || '🎯';
+
+    // Difficulty mapping for 25 levels
+    function getDifficultyInfo(lvl) {
+      if (lvl <= 5) return { tag: 'Beginner', class: 'diff-easy', label: 'Easy' };
+      if (lvl <= 12) return { tag: 'Intermediate', class: 'diff-medium', label: 'Medium' };
+      if (lvl <= 19) return { tag: 'Advanced', class: 'diff-hard', label: 'Hard' };
+      return { tag: 'Master', class: 'diff-extreme', label: 'Extreme' };
+    }
+
+    let progressData = {
+      completedLevels: {},
+      highestUnlockedLevel: 1
+    };
+
+    // Load progress from backend
+    async function loadLevelProgress() {
+      try {
+        const res = await fetch(`/api/student/levels?srn=${encodeURIComponent(srn)}&round=${encodeURIComponent(selectedRound)}`);
+        if (res.ok) {
+          progressData = await res.json();
+        }
+      } catch (e) {
+        console.warn("Could not fetch level progress, defaulting to Level 1 unlocked:", e);
+      }
+      renderLevelGrid();
+    }
+
+    function renderLevelGrid() {
+      const grid = document.getElementById('levelGrid');
+      grid.innerHTML = '';
+
+      const highestUnlocked = Math.max(1, progressData.highestUnlockedLevel || 1);
+      const completed = progressData.completedLevels || {};
+
+      let completedCount = Object.keys(completed).filter(l => completed[l].passed).length;
+      let percent = Math.round((highestUnlocked / 25) * 100);
+
+      document.getElementById('progressText').textContent = `Level Progress: ${highestUnlocked} / 25 Unlocked`;
+      document.getElementById('progressSub').textContent = `${completedCount} of 25 Levels Mastered`;
+      document.getElementById('progressFill').style.width = `${percent}%`;
+      document.getElementById('progressPercent').textContent = `${percent}%`;
+
+      for (let lvl = 1; lvl <= 25; lvl++) {
+        const card = document.createElement('div');
+        const diff = getDifficultyInfo(lvl);
+        const levelData = completed[lvl];
+        const isCompleted = levelData && levelData.passed;
+        const isUnlocked = lvl <= highestUnlocked;
+
+        let cardClass = 'level-card ';
+        if (isCompleted) {
+          cardClass += 'completed';
+        } else if (isUnlocked) {
+          cardClass += 'unlocked';
+        } else {
+          cardClass += 'locked';
+        }
+        card.className = cardClass;
+
+        let iconContent = isCompleted ? '⭐' : (isUnlocked ? '🔥' : '🔒');
+        let btnHTML = '';
+
+        if (isCompleted) {
+          btnHTML = `<button class="level-btn btn-passed">Passed (${levelData.score}%)</button>`;
+        } else if (isUnlocked) {
+          btnHTML = `<button class="level-btn btn-play">Start Level ${lvl} →</button>`;
+        } else {
+          btnHTML = `<button class="level-btn btn-locked" disabled>Locked</button>`;
+        }
+
+        card.innerHTML = `
+          <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+            <span class="difficulty-tag ${diff.class}">${diff.tag}</span>
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">10 Qs</span>
+          </div>
+          <div class="level-icon">${iconContent}</div>
+          <div>
+            <div class="level-number">L-${lvl}</div>
+          </div>
+          ${btnHTML}
+        `;
+
+        if (isUnlocked) {
+          card.addEventListener('click', () => startLevel(lvl));
+        }
+
+        grid.appendChild(card);
+      }
+    }
+
+    async function startLevel(lvl) {
+      localStorage.setItem('selectedLevel', lvl);
+      let sessionId = localStorage.getItem('currentSessionId');
+
+      try {
+        if (!sessionId) {
+          const payload = {
+            studentName: localStorage.getItem('studentName') || 'Candidate',
+            srn: srn,
+            usn: srn,
+            college: localStorage.getItem('studentCollege') || '',
+            branch: localStorage.getItem('studentBranch') || '',
+            year: localStorage.getItem('studentYear') || '4th Year'
+          };
+          const regRes = await fetch('/api/student/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const regData = await regRes.json();
+          sessionId = regData.sessionId;
+          localStorage.setItem('currentSessionId', sessionId);
+        }
+
+        // Sync round and level
+        await fetch('/api/interview/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, round: selectedRound, level: lvl })
+        });
+
+        window.location.href = '/student_setup.html';
+      } catch (err) {
+        console.error("Failed to initialize level:", err);
+        alert("Failed to start level. Please try again.");
+      }
+    }
+
+
+
+    document.getElementById('backRoundsBtn').addEventListener('click', () => {
+      window.location.href = '/student_introduction.html';
+    });
+
+    document.getElementById('dashboardBtn').addEventListener('click', () => {
+      window.location.href = '/student_dashboard.html';
+    });
+
+    loadLevelProgress();
+  </script>
+</body>
+</html>

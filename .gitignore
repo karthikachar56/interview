@@ -1,5 +1,8 @@
 node_modules/
+.env
 .env.local
+server.log
 db/previews/
 db/fallback-*.json
 tmp/
+

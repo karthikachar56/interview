@@ -153,7 +153,8 @@
     }
 
     const round = localStorage.getItem('selectedRound') || 'Technical Mock Interview';
-    document.getElementById('roundTitle').textContent = round;
+    const level = localStorage.getItem('selectedLevel') || '1';
+    document.getElementById('roundTitle').textContent = `${round} — Level ${level}`;
 
     // State variables
     let questionNum = 1;
@@ -1161,7 +1162,8 @@
         });
         const data = await res.json();
         if (data.round) {
-          document.getElementById('roundTitle').textContent = data.round;
+          const activeLvl = data.level || localStorage.getItem('selectedLevel') || '1';
+          document.getElementById('roundTitle').textContent = `${data.round} — Level ${activeLvl}`;
         }
         if (data.selectedQuestions) {
           localStorage.setItem('selectedQuestions', JSON.stringify(data.selectedQuestions));
