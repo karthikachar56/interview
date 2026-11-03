@@ -9,45 +9,271 @@
   <style>
     .dashboard-header {
       margin-bottom: 2.5rem;
-      border-bottom: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--neu-inset-border);
       padding-bottom: 1.5rem;
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
     }
     .stats-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.5rem;
       margin-bottom: 2.5rem;
     }
     .stats-card {
-      padding: 1.25rem;
+      padding: 1.5rem;
       text-align: center;
+      background: var(--bg-surface);
+      border-radius: 1.25rem;
+      box-shadow: var(--neu-flat);
+      border: var(--neu-border);
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .stats-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--neu-flat-hover);
     }
     .stats-val {
-      font-size: 2rem;
+      font-size: 2.25rem;
       font-weight: 800;
+      color: var(--accent-primary);
     }
     .stats-lbl {
-      font-size: 0.8rem;
+      font-size: 0.85rem;
+      font-weight: 600;
       color: var(--text-secondary);
-      margin-top: 0.25rem;
+      margin-top: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 2rem;
     }
     .action-card {
-      padding: 2rem;
+      padding: 2.25rem;
+      background: var(--bg-surface);
+      border-radius: 1.5rem;
+      box-shadow: var(--neu-flat);
+      border: var(--neu-border);
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .action-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--neu-flat-hover);
     }
     .action-card h2 {
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.85rem;
     }
     .action-card p {
       margin-bottom: 2rem;
-      line-height: 1.6;
+      line-height: 1.65;
+    }
+
+    /* Profile Menu & Dropdown */
+    .profile-menu-container {
+      position: relative;
+    }
+    .profile-trigger-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.45rem 1rem 0.45rem 0.5rem;
+      background: var(--bg-surface);
+      border: var(--neu-border);
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: var(--neu-raised-sm);
+      user-select: none;
+    }
+    .profile-trigger-btn:hover {
+      box-shadow: var(--neu-raised-sm-hover);
+      transform: translateY(-1px);
+    }
+    .profile-avatar-sm {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--neu-convex-primary);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.88rem;
+      box-shadow: var(--neu-convex-primary-shadow);
+      flex-shrink: 0;
+    }
+    .profile-trigger-text {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+      line-height: 1.2;
+    }
+    .profile-trigger-name {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .profile-trigger-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .chevron-icon {
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+    .profile-trigger-btn.active .chevron-icon {
+      transform: rotate(180deg);
+    }
+
+    /* Profile Dropdown Popover */
+    .profile-dropdown {
+      position: absolute;
+      top: calc(100% + 0.75rem);
+      right: 0;
+      width: 320px;
+      background: var(--bg-surface);
+      border: var(--neu-border);
+      border-radius: 1.25rem;
+      box-shadow: var(--neu-flat-hover);
+      padding: 1.5rem;
+      z-index: 1000;
+      display: none;
+      animation: dropdown-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .profile-dropdown.show {
+      display: block;
+    }
+    @keyframes dropdown-pop {
+      from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .profile-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--neu-inset-border);
+      margin-bottom: 1rem;
+    }
+    .profile-avatar-lg {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--neu-convex-primary);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.35rem;
+      box-shadow: var(--neu-convex-primary-shadow);
+      flex-shrink: 0;
+    }
+    .profile-card-name {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 210px;
+    }
+    .profile-card-srn {
+      display: inline-block;
+      background: var(--neu-inset-bg);
+      box-shadow: var(--neu-inset-sm);
+      color: var(--accent-primary);
+      border: 1px solid var(--neu-inset-border);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.65rem;
+      border-radius: 9999px;
+      margin-top: 0.25rem;
+      letter-spacing: 0.03em;
+    }
+    .profile-info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .profile-info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      font-size: 0.85rem;
+    }
+    .profile-info-icon {
+      font-size: 0.95rem;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .profile-info-label {
+      color: var(--text-muted);
+      font-weight: 600;
+      width: 65px;
+      flex-shrink: 0;
+    }
+    .profile-info-value {
+      color: var(--text-primary);
+      font-weight: 600;
+      word-break: break-word;
+      flex: 1;
+    }
+    .profile-actions {
+      border-top: 1px solid var(--neu-inset-border);
+      padding-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .profile-logout-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-radius: 2rem;
+      background: var(--bg-surface);
+      border: var(--neu-border);
+      box-shadow: var(--neu-raised-sm);
+      color: var(--accent-danger);
+      font-size: 0.875rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .profile-logout-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--neu-raised-sm-hover);
+      color: #dc2626;
+    }
+    .profile-logout-btn:active {
+      box-shadow: var(--neu-inset-sm);
     }
   </style>
 </head>
@@ -68,8 +294,60 @@
         </h1>
         <p id="greetingSub">Ready to ace your next interview?</p>
       </div>
-      <div>
-        <button class="btn-secondary" id="logoutBtn" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Logout</button>
+      
+      <!-- Profile View (Replaces old standalone logout button) -->
+      <div class="profile-menu-container">
+        <button class="profile-trigger-btn" id="profileBtn" aria-label="Open profile menu" aria-expanded="false">
+          <div class="profile-avatar-sm" id="profileAvatarSm">👤</div>
+          <div class="profile-trigger-text">
+            <span class="profile-trigger-name" id="profileTriggerName">Profile</span>
+            <span class="profile-trigger-sub" id="profileTriggerSrn">Student</span>
+          </div>
+          <svg class="chevron-icon" width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+
+        <!-- Profile Dropdown Card -->
+        <div class="profile-dropdown" id="profileDropdown">
+          <div class="profile-card-header">
+            <div class="profile-avatar-lg" id="profileAvatarLg">👤</div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="profile-card-name" id="profileFullName">Candidate</div>
+              <div class="profile-card-srn" id="profileSrnBadge">SRN: —</div>
+            </div>
+          </div>
+
+          <div class="profile-info-list">
+            <div class="profile-info-row">
+              <span class="profile-info-icon">🏛️</span>
+              <span class="profile-info-label">College</span>
+              <span class="profile-info-value" id="profileCollege">—</span>
+            </div>
+            <div class="profile-info-row">
+              <span class="profile-info-icon">💻</span>
+              <span class="profile-info-label">Branch</span>
+              <span class="profile-info-value" id="profileBranch">—</span>
+            </div>
+            <div class="profile-info-row">
+              <span class="profile-info-icon">🎓</span>
+              <span class="profile-info-label">Year</span>
+              <span class="profile-info-value" id="profileYear">—</span>
+            </div>
+          </div>
+
+          <!-- Logout Button (Available inside Profile View) -->
+          <div class="profile-actions">
+            <button class="profile-logout-btn" id="logoutBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>Log Out</span>
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -140,6 +418,65 @@
     const firstName = studentName.split(' ')[0];
     document.getElementById('greetingTitle').textContent = `Welcome back, ${firstName}! 👋`;
 
+    // Populate Profile Details
+    const studentCollege = localStorage.getItem('studentCollege') || 'Not specified';
+    const studentBranch = localStorage.getItem('studentBranch') || 'Not specified';
+    const studentYear = localStorage.getItem('studentYear') || '4th Year';
+
+    const initials = (studentName || 'Student')
+      .trim()
+      .split(/\s+/)
+      .map(part => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'S';
+
+    document.getElementById('profileAvatarSm').textContent = initials;
+    document.getElementById('profileAvatarLg').textContent = initials;
+    document.getElementById('profileTriggerName').textContent = studentName;
+    document.getElementById('profileTriggerSrn').textContent = srn;
+    document.getElementById('profileFullName').textContent = studentName;
+    document.getElementById('profileSrnBadge').textContent = `SRN: ${srn}`;
+    document.getElementById('profileCollege').textContent = studentCollege;
+    document.getElementById('profileBranch').textContent = studentBranch;
+    document.getElementById('profileYear').textContent = studentYear;
+
+    // Toggle Profile Dropdown
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+
+    profileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = profileDropdown.classList.contains('show');
+      if (isOpen) {
+        profileDropdown.classList.remove('show');
+        profileBtn.classList.remove('active');
+        profileBtn.setAttribute('aria-expanded', 'false');
+      } else {
+        profileDropdown.classList.add('show');
+        profileBtn.classList.add('active');
+        profileBtn.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!profileDropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+        profileDropdown.classList.remove('show');
+        profileBtn.classList.remove('active');
+        profileBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        profileDropdown.classList.remove('show');
+        profileBtn.classList.remove('active');
+        profileBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+
     // Load Stats
     fetch(`/api/student/sessions?srn=${encodeURIComponent(srn)}`)
       .then(res => res.json())
@@ -189,6 +526,7 @@
       window.location.href = '/student_leaderboard.html';
     });
 
+    // Logout inside Profile View
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.clear();
       window.location.href = '/index.html';

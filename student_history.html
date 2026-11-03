@@ -20,11 +20,20 @@
       gap: 1.25rem;
     }
     .history-card {
-      padding: 1.5rem;
+      padding: 1.75rem 2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 1rem;
+      background: var(--bg-surface);
+      border-radius: 1.25rem;
+      box-shadow: var(--neu-flat);
+      border: var(--neu-border);
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .history-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--neu-flat-hover);
     }
     .card-left {
       display: flex;
@@ -32,17 +41,19 @@
       gap: 1.5rem;
     }
     .rank-badge {
-      width: 48px;
-      height: 48px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
-      background: rgba(139,92,246,0.15);
-      border: 2px solid var(--accent-primary);
+      background: var(--bg-surface);
+      box-shadow: var(--neu-raised-xs);
+      border: var(--neu-border);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
+      font-weight: 800;
       color: var(--accent-primary);
       flex-shrink: 0;
+      font-size: 1.15rem;
     }
     .meta-row {
       display: flex;

@@ -8,109 +8,281 @@
   <link rel="stylesheet" href="/student.css">
   <style>
     .levels-container {
-      max-width: 1050px;
-      margin: 5rem auto 3rem;
+      max-width: 1100px;
+      margin: 4.5rem auto 3rem;
       padding: 0 1.5rem;
     }
     .levels-header {
       text-align: center;
-      margin-bottom: 2.5rem;
+      margin-bottom: 2rem;
     }
     .round-badge {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.5rem 1.25rem;
-      border-radius: 2rem;
-      background: rgba(139,92,246,0.15);
-      border: 1px solid rgba(139,92,246,0.3);
-      color: var(--accent-primary);
-      font-size: 0.95rem;
+      padding: 0.45rem 1.25rem;
+      border-radius: 9999px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-size: 0.9rem;
       font-weight: 700;
       margin-bottom: 1rem;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+      transition: transform 0.2s ease;
     }
+    .round-badge:hover {
+      transform: translateY(-1px);
+    }
+
+    /* Progress bar card */
     .progress-bar-container {
-      background: rgba(15, 23, 42, 0.4);
-      border: 1px solid var(--glass-border);
-      border-radius: 1rem;
-      padding: 1.25rem 1.75rem;
-      margin-bottom: 2.5rem;
+      background: var(--bg-surface);
+      border: var(--neu-border);
+      border-radius: 1.25rem;
+      padding: 1.5rem 2rem;
+      margin-bottom: 1.75rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 1rem;
+      gap: 1.25rem;
+      box-shadow: var(--neu-flat);
     }
     .progress-track {
       flex: 1;
-      min-width: 200px;
-      height: 10px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 5px;
+      min-width: 220px;
+      height: 14px;
+      background: var(--neu-inset-bg);
+      box-shadow: var(--neu-inset-sm);
+      border: 1px solid var(--neu-inset-border);
+      border-radius: 9999px;
       overflow: hidden;
+      position: relative;
     }
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #3b82f6, #8b5cf6, #10b981);
+      background: linear-gradient(90deg, #10b981 0%, #0ea5e9 35%, #8b5cf6 70%, #f97316 100%);
       width: 0%;
-      transition: width 0.6s ease;
+      border-radius: 9999px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
     }
+    .progress-pill {
+      font-weight: 800;
+      color: var(--accent-primary);
+      background: var(--neu-inset-bg);
+      box-shadow: var(--neu-inset-sm);
+      border: 1px solid var(--neu-inset-border);
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+    }
+
+    /* Difficulty Legend Bar */
+    .difficulty-legend {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 2.25rem;
+      padding: 0.85rem 1.75rem;
+      background: var(--neu-inset-bg);
+      border: 1px solid var(--neu-inset-border);
+      box-shadow: var(--neu-inset-sm);
+      border-radius: 2rem;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .legend-easy { color: #047857; }
+    .legend-easy .legend-dot { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
+    .legend-medium { color: #0369a1; }
+    .legend-medium .legend-dot { background: #0ea5e9; box-shadow: 0 0 8px rgba(14, 165, 233, 0.6); }
+    .legend-hard { color: #6d28d9; }
+    .legend-hard .legend-dot { background: #8b5cf6; box-shadow: 0 0 8px rgba(139, 92, 246, 0.6); }
+    .legend-extreme { color: #c2410c; }
+    .legend-extreme .legend-dot { background: #f97316; box-shadow: 0 0 8px rgba(249, 115, 22, 0.6); }
 
     /* 25 Level Grid */
     .level-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: 1.25rem;
-      margin-bottom: 3rem;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
     }
     .level-card {
       position: relative;
-      padding: 1.25rem 1rem;
-      border-radius: 1rem;
+      padding: 1.5rem 1.15rem;
+      border-radius: 1.25rem;
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
-      min-height: 170px;
-      transition: all 0.25s ease;
+      min-height: 190px;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
       user-select: none;
       overflow: hidden;
+      background: var(--bg-surface);
+      border: var(--neu-border);
+      box-shadow: var(--neu-raised-sm);
     }
 
-    /* Unlocked Level */
-    .level-card.unlocked {
-      cursor: pointer;
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px solid rgba(139, 92, 246, 0.4);
-      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.15);
+    /* Tier-specific styling for active/unlocked cards */
+    .level-card.unlocked.tier-beginner {
+      background: linear-gradient(165deg, #ffffff 0%, #f0fdf4 100%);
+      border: 2px solid #10b981;
+      box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.22);
     }
-    .level-card.unlocked:hover {
-      transform: translateY(-4px) scale(1.03);
-      border-color: var(--accent-primary);
-      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.35);
-      background: rgba(30, 41, 59, 0.9);
+    .level-card.unlocked.tier-beginner:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 28px -4px rgba(16, 185, 129, 0.32);
+      border-color: #059669;
+    }
+    .level-card.unlocked.tier-beginner .level-number {
+      color: #065f46;
+    }
+    .level-card.unlocked.tier-beginner .btn-play {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 3px 10px rgba(16, 185, 129, 0.35);
+    }
+
+    .level-card.unlocked.tier-intermediate {
+      background: linear-gradient(165deg, #ffffff 0%, #f0f9ff 100%);
+      border: 2px solid #0284c7;
+      box-shadow: 0 8px 24px -4px rgba(2, 132, 199, 0.22);
+    }
+    .level-card.unlocked.tier-intermediate:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 28px -4px rgba(2, 132, 199, 0.32);
+      border-color: #0369a1;
+    }
+    .level-card.unlocked.tier-intermediate .level-number {
+      color: #075985;
+    }
+    .level-card.unlocked.tier-intermediate .btn-play {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      box-shadow: 0 3px 10px rgba(14, 165, 233, 0.35);
+    }
+
+    .level-card.unlocked.tier-advanced {
+      background: linear-gradient(165deg, #ffffff 0%, #faf5ff 100%);
+      border: 2px solid #8b5cf6;
+      box-shadow: 0 8px 24px -4px rgba(139, 92, 246, 0.22);
+    }
+    .level-card.unlocked.tier-advanced:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 28px -4px rgba(139, 92, 246, 0.32);
+      border-color: #7c3aed;
+    }
+    .level-card.unlocked.tier-advanced .level-number {
+      color: #5b21b6;
+    }
+    .level-card.unlocked.tier-advanced .btn-play {
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+      box-shadow: 0 3px 10px rgba(139, 92, 246, 0.35);
+    }
+
+    .level-card.unlocked.tier-master {
+      background: linear-gradient(165deg, #ffffff 0%, #fff7ed 100%);
+      border: 2px solid #f97316;
+      box-shadow: 0 8px 24px -4px rgba(249, 115, 22, 0.25);
+    }
+    .level-card.unlocked.tier-master:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 28px -4px rgba(249, 115, 22, 0.35);
+      border-color: #ea580c;
+    }
+    .level-card.unlocked.tier-master .level-number {
+      color: #9a3412;
+    }
+    .level-card.unlocked.tier-master .btn-play {
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      box-shadow: 0 3px 10px rgba(249, 115, 22, 0.35);
+    }
+
+    /* Highlight pulse on currently active target level */
+    .level-card.is-current {
+      animation: current-card-glow 2.5s infinite;
+    }
+    @keyframes current-card-glow {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35), 0 8px 24px -4px rgba(37, 99, 235, 0.2);
+      }
+      50% {
+        box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.15), 0 12px 28px -4px rgba(37, 99, 235, 0.3);
+      }
+    }
+    .current-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
     }
 
     /* Completed Level */
     .level-card.completed {
-      border: 1px solid rgba(16, 185, 129, 0.5);
-      background: rgba(16, 185, 129, 0.08);
-      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
+      background: linear-gradient(165deg, #ffffff 0%, #ecfdf5 100%);
+      border: 1.5px solid #10b981;
+      box-shadow: 0 4px 14px -2px rgba(16, 185, 129, 0.15);
+      cursor: pointer;
     }
     .level-card.completed:hover {
-      transform: translateY(-4px) scale(1.03);
-      border-color: #10b981;
-      box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+      transform: translateY(-4px);
+      border-color: #059669;
+      box-shadow: 0 10px 24px -2px rgba(16, 185, 129, 0.25);
+    }
+    .level-card.completed .level-number {
+      color: #065f46;
     }
 
     /* Locked Level */
     .level-card.locked {
       cursor: not-allowed;
-      opacity: 0.5;
-      background: rgba(15, 23, 42, 0.4);
-      border: 1px dashed rgba(255, 255, 255, 0.15);
-      filter: grayscale(0.6);
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      box-shadow: none;
+      opacity: 0.75;
+      transition: opacity 0.2s ease, border-color 0.2s ease;
+    }
+    .level-card.locked:hover {
+      opacity: 0.92;
+      border-color: #cbd5e1;
+    }
+    .level-card.locked .level-number {
+      color: #64748b;
+    }
+    .lock-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin: 0.35rem 0;
+      color: #94a3b8;
     }
 
     .level-number {
@@ -120,49 +292,80 @@
       margin-bottom: 0.25rem;
     }
     .difficulty-tag {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      padding: 0.2rem 0.6rem;
-      border-radius: 1rem;
-      margin-bottom: 0.5rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
     }
-    .diff-easy { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-    .diff-medium { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-    .diff-hard { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
-    .diff-extreme { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .diff-easy {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .diff-medium {
+      background: #f0f9ff;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+    .diff-hard {
+      background: #faf5ff;
+      color: #6d28d9;
+      border: 1px solid #e9d5ff;
+    }
+    .diff-extreme {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fed7aa;
+    }
 
     .level-icon {
       font-size: 1.75rem;
       margin: 0.35rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 44px;
     }
 
     .level-btn {
       width: 100%;
-      padding: 0.4rem 0.5rem;
-      font-size: 0.78rem;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.8rem;
       font-weight: 700;
       border-radius: 0.5rem;
       border: none;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
     }
     .btn-play {
-      background: var(--accent-primary);
-      color: #fff;
+      color: #ffffff;
     }
     .btn-play:hover {
-      background: var(--accent-secondary);
+      filter: brightness(1.08);
+      transform: translateY(-1px);
     }
     .btn-passed {
-      background: rgba(16, 185, 129, 0.25);
-      color: #10b981;
-      border: 1px solid rgba(16, 185, 129, 0.4);
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+      font-weight: 700;
+    }
+    .btn-passed:hover {
+      background: #d1fae5;
     }
     .btn-locked {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text-secondary);
+      background: #f1f5f9;
+      color: #94a3b8;
+      border: 1px solid #e2e8f0;
     }
 
     .navigation-bar {
@@ -170,7 +373,7 @@
       justify-content: space-between;
       align-items: center;
       padding-top: 1.5rem;
-      border-top: 1px solid var(--glass-border);
+      border-top: 1px solid #e2e8f0;
     }
   </style>
 </head>
@@ -191,10 +394,10 @@
           <span id="roundIcon">🎯</span>
           <span id="roundTitle">Basic Introduction</span>
         </div>
-        <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem;">
+        <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
           25-Level Interview Matrix
         </h1>
-        <p style="color: var(--text-secondary); font-size: 0.95rem; max-width: 650px; margin: 0 auto;">
+        <p style="color: #64748b; font-size: 0.95rem; max-width: 650px; margin: 0 auto; line-height: 1.6;">
           Pass each 10-question assessment to unlock higher levels. Questions increase progressively in difficulty from Level 1 (Easy) to Level 25 (Hardest)!
         </p>
       </div>
@@ -202,19 +405,35 @@
       <!-- Level Progress Bar -->
       <div class="progress-bar-container">
         <div>
-          <div style="font-weight: 700; font-size: 1.1rem; color: var(--text-primary);" id="progressText">
+          <div style="font-weight: 800; font-size: 1.15rem; color: #0f172a;" id="progressText">
             Level Progress: 1 / 25 Unlocked
           </div>
-          <div style="font-size: 0.8rem; color: var(--text-secondary);" id="progressSub">
+          <div style="font-size: 0.85rem; color: #64748b; margin-top: 0.25rem;" id="progressSub">
             Complete Level 1 with 40%+ to unlock Level 2
           </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 1rem; flex: 1; max-width: 350px;">
+        <div style="display: flex; align-items: center; gap: 1rem; flex: 1; max-width: 360px;">
           <div class="progress-track">
             <div class="progress-fill" id="progressFill" style="width: 4%;"></div>
           </div>
-          <span id="progressPercent" style="font-weight: 800; color: var(--accent-primary); font-size: 0.9rem;">4%</span>
+          <span id="progressPercent" class="progress-pill">4%</span>
         </div>
+      </div>
+
+      <!-- Difficulty Legend Bar -->
+      <div class="difficulty-legend">
+        <span class="legend-item legend-easy">
+          <span class="legend-dot"></span> Beginner (L1–5)
+        </span>
+        <span class="legend-item legend-medium">
+          <span class="legend-dot"></span> Intermediate (L6–12)
+        </span>
+        <span class="legend-item legend-hard">
+          <span class="legend-dot"></span> Advanced (L13–19)
+        </span>
+        <span class="legend-item legend-extreme">
+          <span class="legend-dot"></span> Master (L20–25)
+        </span>
       </div>
 
       <!-- 25 Level Boxes Grid -->
@@ -224,11 +443,11 @@
 
       <!-- Footer Navigation -->
       <div class="navigation-bar">
-        <button class="btn-secondary" id="backRoundsBtn" style="padding: 0.6rem 1.5rem; font-size: 0.9rem;">
+        <button class="btn-secondary" id="backRoundsBtn" style="padding: 0.65rem 1.5rem; font-size: 0.9rem; font-weight: 600;">
           ← Switch Assessment Round
         </button>
-        <button class="btn-secondary" id="dashboardBtn" style="padding: 0.6rem 1.5rem; font-size: 0.9rem;">
-          🚪 Return to Dashboard
+        <button class="btn-secondary" id="dashboardBtn" style="padding: 0.65rem 1.5rem; font-size: 0.9rem; font-weight: 600;">
+          Return to Dashboard
         </button>
       </div>
     </div>
@@ -254,10 +473,10 @@
 
     // Difficulty mapping for 25 levels
     function getDifficultyInfo(lvl) {
-      if (lvl <= 5) return { tag: 'Beginner', class: 'diff-easy', label: 'Easy' };
-      if (lvl <= 12) return { tag: 'Intermediate', class: 'diff-medium', label: 'Medium' };
-      if (lvl <= 19) return { tag: 'Advanced', class: 'diff-hard', label: 'Hard' };
-      return { tag: 'Master', class: 'diff-extreme', label: 'Extreme' };
+      if (lvl <= 5) return { tag: 'Beginner', class: 'diff-easy', label: 'Easy', icon: '🌱' };
+      if (lvl <= 12) return { tag: 'Intermediate', class: 'diff-medium', label: 'Medium', icon: '⚡' };
+      if (lvl <= 19) return { tag: 'Advanced', class: 'diff-hard', label: 'Hard', icon: '🔮' };
+      return { tag: 'Master', class: 'diff-extreme', label: 'Extreme', icon: '👑' };
     }
 
     let progressData = {
@@ -299,34 +518,41 @@
         const levelData = completed[lvl];
         const isCompleted = levelData && levelData.passed;
         const isUnlocked = lvl <= highestUnlocked;
+        const isCurrent = lvl === highestUnlocked && !isCompleted;
 
-        let cardClass = 'level-card ';
+        let cardClass = `level-card tier-${diff.tag.toLowerCase()} `;
         if (isCompleted) {
           cardClass += 'completed';
         } else if (isUnlocked) {
           cardClass += 'unlocked';
+          if (isCurrent) cardClass += ' is-current';
         } else {
           cardClass += 'locked';
         }
         card.className = cardClass;
 
-        let iconContent = isCompleted ? '⭐' : (isUnlocked ? '🔥' : '🔒');
+        let iconHTML = '';
         let btnHTML = '';
+        let badgeHTML = isCurrent ? '<span class="current-badge">Next</span>' : '';
 
         if (isCompleted) {
+          iconHTML = '<div class="level-icon">⭐</div>';
           btnHTML = `<button class="level-btn btn-passed">Passed (${levelData.score}%)</button>`;
         } else if (isUnlocked) {
+          iconHTML = `<div class="level-icon">${diff.icon}</div>`;
           btnHTML = `<button class="level-btn btn-play">Start Level ${lvl} →</button>`;
         } else {
+          iconHTML = '<div class="lock-circle">🔒</div>';
           btnHTML = `<button class="level-btn btn-locked" disabled>Locked</button>`;
         }
 
         card.innerHTML = `
+          ${badgeHTML}
           <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
             <span class="difficulty-tag ${diff.class}">${diff.tag}</span>
-            <span style="font-size: 0.75rem; color: var(--text-secondary);">10 Qs</span>
+            <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">10 Qs</span>
           </div>
-          <div class="level-icon">${iconContent}</div>
+          ${iconHTML}
           <div>
             <div class="level-number">L-${lvl}</div>
           </div>

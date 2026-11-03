@@ -12,13 +12,12 @@
       justify-content: space-between;
       align-items: center;
       padding: 1.25rem 3rem;
-      border-bottom: 1px solid var(--glass-border);
+      border-bottom: var(--neu-border);
       position: sticky;
       top: 0;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      background: rgba(255, 255, 255, 0.8);
-      z-index: 10;
+      background: var(--bg-surface);
+      box-shadow: 0 8px 24px #c1ccd9;
+      z-index: 100;
     }
     .hero-section {
       text-align: center;
@@ -27,89 +26,117 @@
       margin: 0 auto;
     }
     .hero-badge {
-      display: inline-block;
-      padding: 0.375rem 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1.25rem;
       border-radius: 2rem;
-      background: rgba(139,92,246,0.15);
-      border: 1px solid rgba(139,92,246,0.3);
+      background: var(--bg-surface);
+      border: var(--neu-border);
+      box-shadow: var(--neu-raised-sm);
       color: var(--accent-primary);
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      letter-spacing: 0.02em;
     }
     .hero-title {
       font-size: clamp(2.5rem, 6vw, 4.5rem);
       font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 1.5rem;
+      line-height: 1.15;
+      margin-bottom: 1.75rem;
       letter-spacing: -0.03em;
+      color: var(--text-primary);
     }
     .hero-desc {
       font-size: 1.2rem;
       color: var(--text-secondary);
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto 3rem;
-      line-height: 1.7;
+      line-height: 1.75;
     }
     .features-section {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 2rem 2rem 6rem;
+      padding: 2rem 2rem 5rem;
     }
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
     }
     .feature-card {
-      padding: 1.75rem;
-      transition: transform 0.2s ease, border-color 0.2s ease;
+      padding: 2.25rem;
+      border-radius: 1.5rem;
+      background: var(--bg-surface);
+      box-shadow: var(--neu-flat);
+      border: var(--neu-border);
+      transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .feature-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--accent-secondary);
+      transform: translateY(-4px);
+      box-shadow: var(--neu-flat-hover);
     }
-    .cta-section {
-      text-align: center;
+    .feature-icon-well {
+      width: 58px;
+      height: 58px;
+      border-radius: 1.1rem;
+      background: var(--neu-inset-bg);
+      box-shadow: var(--neu-inset-sm);
+      border: 1px solid var(--neu-inset-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .cta-container {
+      max-width: 1000px;
+      margin: 2rem auto 5rem;
+      padding: 0 1.5rem;
+    }
+    .cta-card {
       padding: 4rem 2rem;
-      border-top: 1px solid var(--glass-border);
-    }
-    .landing-footer {
       text-align: center;
-      padding: 1.5rem;
-      border-top: 1px solid var(--glass-border);
-      color: var(--text-secondary);
-      font-size: 0.8rem;
+      background: var(--bg-surface);
+      border-radius: 2rem;
+      box-shadow: var(--neu-flat);
+      border: var(--neu-border);
     }
   </style>
 </head>
 <body>
   <nav class="landing-nav">
-    <a href="/student_dashboard.html" style="display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: inherit;">
-      <img src="/eetirp-icon.jpeg" style="height: 32px; border-radius: 0.25rem;" alt="EETIRP Logo">
-      <span style="font-weight: 700; font-size: 1.25rem; color: var(--text-primary); letter-spacing: 0.05em;">EETIRP</span>
+    <a href="/student_dashboard.html" style="display: flex; align-items: center; gap: 0.85rem; text-decoration: none; color: inherit;">
+      <div style="padding: 0.35rem; border-radius: 0.75rem; background: var(--bg-surface); box-shadow: var(--neu-raised-xs); border: var(--neu-border); display: flex;">
+        <img src="/eetirp-icon.jpeg" style="height: 32px; border-radius: 0.35rem;" alt="EETIRP Logo">
+      </div>
+      <span style="font-weight: 800; font-size: 1.35rem; color: var(--text-primary); letter-spacing: 0.05em;">EETIRP</span>
     </a>
-    <div style="display: flex; gap: 1rem;">
-      <a href="/student_leaderboard.html" class="btn-secondary" style="padding: 0.5rem 1.25rem; font-size: 0.9rem;">Leaderboard</a>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <a href="/student_leaderboard.html" class="btn-secondary" style="padding: 0.6rem 1.35rem; font-size: 0.9rem;">🏆 Leaderboard</a>
     </div>
   </nav>
 
   <main>
     <!-- Hero Section -->
     <section class="hero-section animate-fade-in-up">
+      <div class="hero-badge">
+        <span>✨</span> Next-Generation Soft UI Mock Interviews
+      </div>
 
       <h1 class="hero-title">
         <span class="text-gradient">Ace Your Next</span>
         <br>Technical Interview
       </h1>
       <p class="hero-desc">
-        Practice with an AI interviewer that adapts to your answers, gives real-time feedback, and scores your performance — all in your browser.
+        Practice with an adaptive AI interviewer that listens in real-time, asks intelligent follow-ups, and scores your confidence & competence — right in your browser.
       </p>
-      <div style="display: flex; gap: 1rem; justifyContent: center; justify-content: center; flex-wrap: wrap;">
-        <a href="/student_registration.html" class="btn-primary" style="padding: 1rem 2rem; font-size: 1.05rem;">
+      <div style="display: flex; gap: 1.25rem; justify-content: center; flex-wrap: wrap;">
+        <a href="/student_registration.html" class="btn-primary" style="padding: 1.1rem 2.25rem; font-size: 1.05rem;">
           Start Free Interview →
         </a>
-        <a href="/student_leaderboard.html" class="btn-secondary" style="padding: 1rem 2rem; font-size: 1.05rem;">
+        <a href="/student_leaderboard.html" class="btn-secondary" style="padding: 1.1rem 2.25rem; font-size: 1.05rem;">
           View Leaderboard
         </a>
       </div>
@@ -119,69 +146,73 @@
     <section class="features-section">
       <div class="features-grid">
         <!-- Feature 1 -->
-        <div class="glass-panel feature-card">
-          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🤖</div>
-          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">AI-Powered Interviews</h3>
-          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
-            Gemini AI conducts the interview, evaluates your answers in real-time, and asks intelligent follow-up questions.
+        <div class="feature-card animate-fade-in-up" style="animation-delay: 0.05s;">
+          <div class="feature-icon-well">🤖</div>
+          <h3 style="font-size: 1.15rem; color: var(--text-primary); margin-bottom: 0.65rem;">AI-Powered Interviews</h3>
+          <p style="font-size: 0.925rem; color: var(--text-secondary); line-height: 1.65; margin: 0;">
+            Gemini AI conducts multi-round interviews, dynamically adapting questions based on your technical answers and depth.
           </p>
         </div>
 
         <!-- Feature 2 -->
-        <div class="glass-panel feature-card">
-          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🎙️</div>
-          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">Live Voice Transcription</h3>
-          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
-            Your answers are transcribed live using the Web Speech API. No typing needed — just speak naturally.
+        <div class="feature-card animate-fade-in-up" style="animation-delay: 0.1s;">
+          <div class="feature-icon-well">🎙️</div>
+          <h3 style="font-size: 1.15rem; color: var(--text-primary); margin-bottom: 0.65rem;">Live Voice Transcription</h3>
+          <p style="font-size: 0.925rem; color: var(--text-secondary); line-height: 1.65; margin: 0;">
+            Speech is captured live using speech recognition. Speak naturally as if sitting across from a real senior engineer.
           </p>
         </div>
 
         <!-- Feature 3 -->
-        <div class="glass-panel feature-card">
-          <div style="font-size: 2rem; margin-bottom: 0.75rem;">📊</div>
-          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">Instant Scored Report</h3>
-          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
-            Get a detailed scorecard with strengths, areas for improvement, and actionable feedback after every session.
+        <div class="feature-card animate-fade-in-up" style="animation-delay: 0.15s;">
+          <div class="feature-icon-well">📊</div>
+          <h3 style="font-size: 1.15rem; color: var(--text-primary); margin-bottom: 0.65rem;">Instant Scored Report</h3>
+          <p style="font-size: 0.925rem; color: var(--text-secondary); line-height: 1.65; margin: 0;">
+            Receive comprehensive analytics, actionable strengths, areas of improvement, and detailed feedback metrics.
           </p>
         </div>
 
         <!-- Feature 4 -->
-        <div class="glass-panel feature-card">
-          <div style="font-size: 2rem; margin-bottom: 0.75rem;">👁️</div>
-          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">Admin Observation</h3>
-          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
-            Interviewers can observe live sessions, take over the interview, and guide candidates via direct messaging.
+        <div class="feature-card animate-fade-in-up" style="animation-delay: 0.2s;">
+          <div class="feature-icon-well">👁️</div>
+          <h3 style="font-size: 1.15rem; color: var(--text-primary); margin-bottom: 0.65rem;">Admin Observation</h3>
+          <p style="font-size: 0.925rem; color: var(--text-secondary); line-height: 1.65; margin: 0;">
+            Faculty and interviewers can observe live sessions, take over the interview, or send private hints in real time.
           </p>
         </div>
 
         <!-- Feature 5 -->
-        <div class="glass-panel feature-card">
-          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🏆</div>
-          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">College Leaderboard</h3>
-          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
-            Compare your performance with peers in your institution and track your progress over multiple interviews.
+        <div class="feature-card animate-fade-in-up" style="animation-delay: 0.25s;">
+          <div class="feature-icon-well">🏆</div>
+          <h3 style="font-size: 1.15rem; color: var(--text-primary); margin-bottom: 0.65rem;">College Leaderboard</h3>
+          <p style="font-size: 0.925rem; color: var(--text-secondary); line-height: 1.65; margin: 0;">
+            Compete on department and college leaderboards to benchmark yourself among peer developers and engineers.
           </p>
         </div>
 
         <!-- Feature 6 -->
-        <div class="glass-panel feature-card">
-          <div style="font-size: 2rem; margin-bottom: 0.75rem;">⚙️</div>
-          <h3 style="font-size: 1.05rem; color: var(--text-primary); margin-bottom: 0.5rem;">Customizable AI</h3>
-          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
-            Admins can configure the AI personality, question topics, difficulty level, and scoring rubric to match any role.
+        <div class="feature-card animate-fade-in-up" style="animation-delay: 0.3s;">
+          <div class="feature-icon-well">⚙️</div>
+          <h3 style="font-size: 1.15rem; color: var(--text-primary); margin-bottom: 0.65rem;">Customizable AI Rubrics</h3>
+          <p style="font-size: 0.925rem; color: var(--text-secondary); line-height: 1.65; margin: 0;">
+            Configure AI interview strictness, target domains (Frontend, Backend, System Design, HR), and evaluation criteria.
           </p>
         </div>
       </div>
     </section>
 
     <!-- Call to Action -->
-    <section class="cta-section">
-      <h2 style="font-size: 2rem; margin-bottom: 1rem; color: var(--text-primary);">Ready to practice?</h2>
-      <p style="color: var(--text-secondary); margin-bottom: 2rem;">It takes 30 seconds to register and start your first AI interview.</p>
-      <a href="/student_registration.html" class="btn-primary" style="padding: 1rem 2.5rem; font-size: 1.1rem;">
-        Get Started — It's Free →
-      </a>
-    </section>
+    <div class="cta-container">
+      <section class="cta-card animate-fade-in-up">
+        <h2 style="font-size: 2.25rem; margin-bottom: 1rem; color: var(--text-primary);">Ready to test your skills?</h2>
+        <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 2.25rem; max-width: 600px; margin-left: auto; margin-right: auto;">
+          Experience an ultra-responsive, tactile interview simulation built with modern soft neumorphism.
+        </p>
+        <a href="/student_registration.html" class="btn-primary" style="padding: 1.1rem 2.75rem; font-size: 1.1rem;">
+          Get Started — It's Free →
+        </a>
+      </section>
+    </div>
   </main>
 
   <footer class="footer-section animate-fade-in-up">

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,15 +9,18 @@
   <link rel="stylesheet" href="/student.css">
   <link rel="stylesheet" href="/admin.css?v=1.1">
 </head>
+
 <body>
   <div class="admin-layout">
     <!-- Sidebar -->
     <aside class="admin-sidebar">
       <div style="padding: 0 1.5rem; margin-bottom: 2rem;">
-        <div style="width: 40px; height: 40px; border-radius: 0.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem;">
+        <div
+          style="width: 40px; height: 40px; border-radius: 0.5rem; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem;">
           <img src="/eetirp-icon.jpeg" style="width: 100%; height: 100%; object-fit: cover;" alt="EETIRP Logo">
         </div>
-        <h1 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; padding: 0;">Admin Portal</h1>
+        <h1 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; padding: 0;">Admin
+          Portal</h1>
         <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">Interview Management</p>
       </div>
 
@@ -40,7 +44,10 @@
       </nav>
 
       <div style="padding: 1rem; border-top: 1px solid var(--glass-border); margin-top: auto;">
-        <button onclick="handleLogout()" style="width: 100%; padding: 0.625rem 1rem; border-radius: 0.5rem; background: transparent; border: 1px solid rgba(239,68,68,0.4); color: #ef4444; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(239,68,68,0.08)'" onmouseleave="this.style.background='transparent'">
+        <button onclick="handleLogout()"
+          style="width: 100%; padding: 0.625rem 1rem; border-radius: 0.5rem; background: transparent; border: 1px solid rgba(239,68,68,0.4); color: #ef4444; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"
+          onmouseenter="this.style.background='rgba(239,68,68,0.08)'"
+          onmouseleave="this.style.background='transparent'">
           🚪 Logout
         </button>
       </div>
@@ -58,7 +65,8 @@
         </div>
 
         <!-- Info preview card -->
-        <div class="glass-panel" style="padding: 1.25rem; margin-bottom: 2rem; border-left: 3px solid var(--accent-primary)">
+        <div class="glass-panel"
+          style="padding: 1.25rem; margin-bottom: 2rem; border-left: 3px solid var(--accent-primary)">
           <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
             <span style="font-size: 1.25rem;">🤖</span>
             <strong style="color: var(--accent-primary);">AI Persona Preview</strong>
@@ -81,16 +89,13 @@
               </span>
             </div>
 
-            <div id="loadingText" style="height: 300px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+            <div id="loadingText"
+              style="height: 300px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
               Loading current config...
             </div>
 
-            <textarea
-              id="instructionsText"
-              rows="14"
-              placeholder="Enter instructions for the AI interviewer..."
-              style="display: none; width: 100%; padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: rgba(15, 23, 42, 0.04); color: var(--text-primary); font-size: 0.9rem; line-height: 1.7; resize: vertical; fontFamily: inherit; outline: none;"
-            ></textarea>
+            <textarea id="instructionsText" rows="14" placeholder="Enter instructions for the AI interviewer..."
+              style="display: none; width: 100%; padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: rgba(15, 23, 42, 0.04); color: var(--text-primary); font-size: 0.9rem; line-height: 1.7; resize: vertical; fontFamily: inherit; outline: none;"></textarea>
           </div>
 
           <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
@@ -109,25 +114,34 @@
 
         <!-- Configuration Tips -->
         <div style="margin-top: 2.5rem;">
-          <h3 style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">
+          <h3
+            style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">
             Tips for Effective Instructions
           </h3>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
             <div class="glass-panel" style="padding: 1rem;">
-              <div style="margin-bottom: 0.5rem;">🎯 <strong style="color: var(--text-primary)">Be Specific</strong></div>
-              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Define exactly what topics to cover (e.g., "Focus on React hooks and async/await")</p>
+              <div style="margin-bottom: 0.5rem;">🎯 <strong style="color: var(--text-primary)">Be Specific</strong>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Define exactly
+                what topics to cover (e.g., "Focus on React hooks and async/await")</p>
             </div>
             <div class="glass-panel" style="padding: 1rem;">
-              <div style="margin-bottom: 0.5rem;">📊 <strong style="color: var(--text-primary)">Set the Tone</strong></div>
-              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Specify difficulty: "Target 3+ years experience" or "Focus on fresh graduates"</p>
+              <div style="margin-bottom: 0.5rem;">📊 <strong style="color: var(--text-primary)">Set the Tone</strong>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Specify
+                difficulty: "Target 3+ years experience" or "Focus on fresh graduates"</p>
             </div>
             <div class="glass-panel" style="padding: 1rem;">
-              <div style="margin-bottom: 0.5rem;">📝 <strong style="color: var(--text-primary)">Scoring Rubric</strong></div>
-              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Tell the AI what a good vs bad answer looks like for scoring accuracy</p>
+              <div style="margin-bottom: 0.5rem;">📝 <strong style="color: var(--text-primary)">Scoring Rubric</strong>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Tell the AI what
+                a good vs bad answer looks like for scoring accuracy</p>
             </div>
             <div class="glass-panel" style="padding: 1rem;">
-              <div style="margin-bottom: 0.5rem;">⏱️ <strong style="color: var(--text-primary)">Question Count</strong></div>
-              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Suggest how many questions to ask: "Ask 5-7 questions total covering different topics"</p>
+              <div style="margin-bottom: 0.5rem;">⏱️ <strong style="color: var(--text-primary)">Question Count</strong>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;">Suggest how many
+                questions to ask: "Ask 5-7 questions total covering different topics"</p>
             </div>
           </div>
         </div>
@@ -169,7 +183,7 @@ Guidelines:
         }
 
         const data = await res.json();
-        
+
         loadingText.style.display = 'none';
         instructionsText.style.display = 'block';
 
@@ -225,4 +239,5 @@ Guidelines:
     loadConfig();
   </script>
 </body>
+
 </html>
