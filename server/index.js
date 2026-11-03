@@ -2,6 +2,7 @@
 // Minimal Express example to store entrance selections
 
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config();
 require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 
@@ -16,6 +17,171 @@ const { GoogleGenAI } = require('@google/genai');
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const app = express();
+app.disable('x-powered-by');
+
+// Security HTTP Headers Middleware
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss: https:;"
+  );
+  next();
+});
+
+// Lightweight In-Memory Rate Limiter
+const rateLimitMap = new Map();
+function rateLimit(keyPrefix, maxRequests, windowMs) {
+  return (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress || '127.0.0.1';
+    const key = `${keyPrefix}:${ip}`;
+    const now = Date.now();
+    let record = rateLimitMap.get(key);
+    if (!record || now > record.resetTime) {
+      record = { count: 1, resetTime: now + windowMs };
+      rateLimitMap.set(key, record);
+      return next();
+    }
+    record.count++;
+    if (record.count > maxRequests) {
+      return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    }
+    next();
+  };
+}
+
+// Cleanup expired rate limit records periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of rateLimitMap.entries()) {
+    if (now > v.resetTime) rateLimitMap.delete(k);
+  }
+}, 10 * 60 * 1000);
+
+// Authentication & Cryptographic Security Helpers
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+function createAdminToken() {
+  const expiresAt = Date.now() + 8 * 3600 * 1000; // 8 hours
+  const payload = `admin:${expiresAt}`;
+  const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+  return `${payload}:${hmac}`;
+}
+
+function verifyAdminToken(token) {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.split(':');
+  if (parts.length !== 3) return false;
+  const [role, expiresStr, signature] = parts;
+  if (role !== 'admin') return false;
+  const expiresAt = parseInt(expiresStr, 10);
+  if (isNaN(expiresAt) || Date.now() > expiresAt) return false;
+  const expectedPayload = `${role}:${expiresStr}`;
+  const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(expectedPayload).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSig, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
+function getAdminAuth(req) {
+  if (!req) return false;
+  const authHeader = req.headers?.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const bearerToken = authHeader.slice(7).trim();
+    if (verifyAdminToken(bearerToken)) return true;
+  }
+  const rc = req.headers?.cookie;
+  if (!rc) return false;
+  const list = {};
+  rc.split(';').forEach(cookie => {
+    const parts = cookie.split('=');
+    if (parts.length >= 2) {
+      list[parts.shift().trim()] = decodeURIComponent(parts.join('='));
+    }
+  });
+  return verifyAdminToken(list['admin_auth']);
+}
+
+function hashPassword(password) {
+  if (!password) return { hash: null, salt: null };
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return { hash, salt };
+}
+
+function verifyPassword(password, storedHash, storedSalt) {
+  if (!password || !storedHash) return false;
+  if (!storedSalt) {
+    // Legacy plaintext password compatibility
+    return password === storedHash;
+  }
+  const hash = crypto.scryptSync(password, storedSalt, 64).toString('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(storedHash, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeSession(session) {
+  if (!session) return session;
+  const copy = { ...session };
+  delete copy.password;
+  delete copy.passwordHash;
+  delete copy.passwordSalt;
+  return copy;
+}
+
+// Sensitive files and directories access guard (must run before static serving)
+app.use((req, res, next) => {
+  const cleanPath = req.path.toLowerCase().replace(/\\/g, '/');
+
+  // Block direct access to internal server directories & hidden files
+  if (
+    cleanPath.startsWith('/server') ||
+    cleanPath.startsWith('/db') ||
+    cleanPath.startsWith('/node_modules') ||
+    cleanPath.startsWith('/tmp') ||
+    cleanPath.startsWith('/.') ||
+    cleanPath.includes('/.')
+  ) {
+    return res.status(403).json({ error: 'Forbidden: Access to protected directory is denied.' });
+  }
+
+  // Block direct downloading of sensitive backend source/config/metadata files
+  if (
+    cleanPath.endsWith('.json') ||
+    cleanPath.endsWith('.js') ||
+    cleanPath.endsWith('.ts') ||
+    cleanPath.endsWith('.py') ||
+    cleanPath.endsWith('.md') ||
+    cleanPath.endsWith('.yml') ||
+    cleanPath.endsWith('.yaml') ||
+    cleanPath.endsWith('.lock') ||
+    cleanPath.includes('dockerfile') ||
+    cleanPath.includes('clear_data')
+  ) {
+    return res.status(403).json({ error: 'Forbidden: Direct access to source and configuration files is denied.' });
+  }
+
+  // Admin page protection: require authentication before loading admin HTML files
+  if (
+    (cleanPath.startsWith('/admin') && cleanPath.endsWith('.html') && cleanPath !== '/admin_login.html') ||
+    cleanPath === '/admin.html'
+  ) {
+    if (!getAdminAuth(req)) {
+      return res.redirect('/admin_login.html');
+    }
+  }
+
+  next();
+});
+
 app.use(express.json({ limit: '8mb' }));
 app.use(express.static(path.join(__dirname, '..')));
 
@@ -106,7 +272,7 @@ function execFilePromise(command, args, options = {}) {
 }
 
 async function runCompileJob(language, code) {
-  const normalized = String(language || '').toLowerCase();
+  const normalized = String(language || '').toLowerCase().trim();
   const supported = {
     python: 'script.py',
     javascript: 'script.js',
@@ -119,51 +285,60 @@ async function runCompileJob(language, code) {
     return { error: `Unsupported language: ${language}` };
   }
 
-  const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  if (typeof code !== 'string' || code.length > 50000) {
+    return { error: 'Code submission exceeds size limit (50KB maximum)' };
+  }
+
+  const jobId = `job-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   const targetDir = path.join(compileTempDir, jobId);
   await fs.mkdir(targetDir, { recursive: true });
   const sourcePath = path.join(targetDir, sourceName);
   await fs.writeFile(sourcePath, code, 'utf8');
 
-  if (normalized === 'python') {
-    let result = await execFilePromise('python', [sourcePath], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
-    if (result.error && result.error.code === 'ENOENT') {
-      result = await execFilePromise('python3', [sourcePath], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
+  try {
+    if (normalized === 'python') {
+      let result = await execFilePromise('python', [sourcePath], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
+      if (result.error && result.error.code === 'ENOENT') {
+        result = await execFilePromise('python3', [sourcePath], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
+      }
+      return { output: formatResult(result.stdout, result.stderr), error: result.error ? result.error.message : null };
     }
-    return { output: formatResult(result.stdout, result.stderr), error: result.error ? result.error.message : null };
-  }
 
-  if (normalized === 'javascript') {
-    const nodePath = process.execPath || 'node';
-    const result = await execFilePromise(nodePath, [sourcePath], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
-    return { output: formatResult(result.stdout, result.stderr), error: result.error ? result.error.message : null };
-  }
-
-  if (normalized === 'c' || normalized === 'cpp') {
-    const executableName = process.platform === 'win32' ? 'program.exe' : 'program';
-    const executablePath = path.join(targetDir, executableName);
-    const compiler = normalized === 'c' ? 'gcc' : 'g++';
-    const compileResult = await execFilePromise(compiler, [sourcePath, '-o', executablePath], { cwd: targetDir, timeout: 10000, maxBuffer: 1024 * 1024 });
-    if (compileResult.error) {
-      return { output: formatResult(compileResult.stdout, compileResult.stderr), error: compileResult.error.message };
+    if (normalized === 'javascript') {
+      const nodePath = process.execPath || 'node';
+      const result = await execFilePromise(nodePath, [sourcePath], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
+      return { output: formatResult(result.stdout, result.stderr), error: result.error ? result.error.message : null };
     }
-    const runResult = await execFilePromise(executablePath, [], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
-    return { output: formatResult(runResult.stdout, runResult.stderr), error: runResult.error ? runResult.error.message : null };
-  }
 
-  if (normalized === 'java') {
-    const compileResult = await execFilePromise('javac', [sourcePath], { cwd: targetDir, timeout: 10000, maxBuffer: 1024 * 1024 });
-    if (compileResult.error) {
-      return { output: formatResult(compileResult.stdout, compileResult.stderr), error: compileResult.error.message };
+    if (normalized === 'c' || normalized === 'cpp') {
+      const executableName = process.platform === 'win32' ? 'program.exe' : 'program';
+      const executablePath = path.join(targetDir, executableName);
+      const compiler = normalized === 'c' ? 'gcc' : 'g++';
+      const compileResult = await execFilePromise(compiler, [sourcePath, '-o', executablePath], { cwd: targetDir, timeout: 10000, maxBuffer: 1024 * 1024 });
+      if (compileResult.error) {
+        return { output: formatResult(compileResult.stdout, compileResult.stderr), error: compileResult.error.message };
+      }
+      const runResult = await execFilePromise(executablePath, [], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
+      return { output: formatResult(runResult.stdout, runResult.stderr), error: runResult.error ? runResult.error.message : null };
     }
-    const runResult = await execFilePromise('java', ['-cp', targetDir, 'Main'], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
-    return { output: formatResult(runResult.stdout, runResult.stderr), error: runResult.error ? runResult.error.message : null };
-  }
 
-  return { error: `Language ${language} is not supported` };
+    if (normalized === 'java') {
+      const compileResult = await execFilePromise('javac', [sourcePath], { cwd: targetDir, timeout: 10000, maxBuffer: 1024 * 1024 });
+      if (compileResult.error) {
+        return { output: formatResult(compileResult.stdout, compileResult.stderr), error: compileResult.error.message };
+      }
+      const runResult = await execFilePromise('java', ['-cp', targetDir, 'Main'], { cwd: targetDir, timeout: 5000, maxBuffer: 1024 * 1024 });
+      return { output: formatResult(runResult.stdout, runResult.stderr), error: runResult.error ? runResult.error.message : null };
+    }
+
+    return { error: `Language ${language} is not supported` };
+  } finally {
+    // Clean up job directory to prevent disk exhaustion
+    await fs.rm(targetDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://achark659_db_user:Xxol6UxZQILSZtrQ@cluster0.upn6f4k.mongodb.net/?appName=Cluster0';
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/ai_interview';
 const DB_NAME = 'ai_interview';
 const fallbackPath = path.join(__dirname, '..', 'db', 'fallback-entrances.json');
 const sessionsFallbackPath = path.join(__dirname, '..', 'db', 'fallback-sessions.json');
@@ -298,16 +473,7 @@ async function get10QuestionsForRoundAndLevel(round, level = 1) {
   return levelQuestions;
 }
 
-function getAdminAuth(req) {
-  const rc = req.headers.cookie;
-  if (!rc) return false;
-  const list = {};
-  rc.split(';').forEach(cookie => {
-    const parts = cookie.split('=');
-    list[parts.shift().trim()] = decodeURI(parts.join('='));
-  });
-  return list['admin_auth'] === 'authenticated';
-}
+
 
 async function generateContentWithRetry(promptConfig, maxRetries = 3, delayMs = 5000) {
   let attempt = 0;
@@ -702,18 +868,23 @@ async function startServer() {
   console.log(`Loaded fallback sessions: ${backupSessions.length}`);
 
   // Admin Endpoints
-  app.post('/api/admin/login', (req, res) => {
+  app.post('/api/admin/login', rateLimit('admin-login', 5, 5 * 60 * 1000), (req, res) => {
     const { password } = req.body;
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-    if (password !== adminPassword) {
+    if (typeof password !== 'string' || password !== adminPassword) {
       return res.status(401).json({ error: 'Invalid password' });
     }
-    res.setHeader('Set-Cookie', 'admin_auth=authenticated; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800');
-    res.json({ success: true });
+    const token = createAdminToken();
+    const isProd = process.env.NODE_ENV === 'production';
+    res.setHeader(
+      'Set-Cookie',
+      `admin_auth=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${isProd ? '; Secure' : ''}`
+    );
+    res.json({ success: true, token });
   });
 
   app.post('/api/admin/logout', (req, res) => {
-    res.setHeader('Set-Cookie', 'admin_auth=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+    res.setHeader('Set-Cookie', 'admin_auth=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
     res.json({ success: true });
   });
 
@@ -724,17 +895,17 @@ async function startServer() {
 
     try {
       if (mongoUnavailable) {
-        return res.json({ sessions: backupSessions });
+        return res.json({ sessions: backupSessions.map(sanitizeSession) });
       }
 
       const client = await connectDb();
       if (client) {
         const db = client.db(DB_NAME);
         const sessions = await db.collection('interviewsessions').find().sort({ updatedAt: -1 }).toArray();
-        return res.json({ sessions });
+        return res.json({ sessions: sessions.map(sanitizeSession) });
       }
 
-      res.json({ sessions: backupSessions });
+      res.json({ sessions: backupSessions.map(sanitizeSession) });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to fetch sessions' });
@@ -892,13 +1063,25 @@ async function startServer() {
   });
 
   // candidate login/register
-  app.post('/api/student/register', async (req, res) => {
+  app.post('/api/student/register', rateLimit('student-register', 15, 5 * 60 * 1000), async (req, res) => {
     const { studentName, srn, usn, college, branch, year, password } = req.body;
-    const finalSrn = (srn || usn || '').trim().toUpperCase();
-    if (!studentName || !finalSrn) {
+    if (typeof studentName !== 'string' || (!srn && !usn)) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const finalSrn = String(srn || usn || '').trim().toUpperCase();
+    if (!studentName.trim() || !finalSrn) {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
+    // Hash password securely if provided
+    let passwordHash = null;
+    let passwordSalt = null;
+    if (typeof password === 'string' && password.trim()) {
+      const hp = hashPassword(password.trim());
+      passwordHash = hp.hash;
+      passwordSalt = hp.salt;
+    }
+
     const sessionId = `${finalSrn}-${Date.now()}`;
     
     const doc = {
@@ -909,10 +1092,11 @@ async function startServer() {
       studentName: studentName.trim(),
       srn: finalSrn,
       usn: finalSrn, // Keep usn populated for legacy support
-      college: (college || '').trim(),
-      branch: (branch || '').trim(),
-      year: year || '4th Year',
-      password: password || null,
+      college: typeof college === 'string' ? college.trim() : '',
+      branch: typeof branch === 'string' ? branch.trim() : '',
+      year: typeof year === 'string' ? year : '4th Year',
+      passwordHash,
+      passwordSalt,
       status: 'in_progress',
       aiStatus: 'active',
       startTime: new Date(),
@@ -923,21 +1107,30 @@ async function startServer() {
     try {
       let existingSession = null;
       if (mongoUnavailable) {
-        existingSession = backupSessions.find(s => (s.srn === finalSrn || s.usn === finalSrn) && s.password);
+        existingSession = backupSessions.find(s => (s.srn === finalSrn || s.usn === finalSrn) && (s.passwordHash || s.password));
       } else {
         const client = await connectDb();
         if (client) {
           const db = client.db(DB_NAME);
           existingSession = await db.collection('interviewsessions').findOne(
-            { $or: [{ srn: finalSrn }, { usn: finalSrn }], password: { $ne: null } },
+            {
+              $and: [
+                { $or: [{ srn: finalSrn }, { usn: finalSrn }] },
+                { $or: [{ passwordHash: { $ne: null } }, { password: { $ne: null } }] }
+              ]
+            },
             { sort: { startTime: -1 } }
           );
         }
       }
 
-      if (existingSession && existingSession.password) {
-        if (!password || existingSession.password !== password) {
-          return res.status(400).json({ error: "This SRN is already registered. Please log in instead." });
+      if (existingSession) {
+        const storedHash = existingSession.passwordHash || existingSession.password;
+        const storedSalt = existingSession.passwordSalt || null;
+        if (storedHash) {
+          if (!password || !verifyPassword(String(password).trim(), storedHash, storedSalt)) {
+            return res.status(400).json({ error: "This SRN is already registered. Please log in instead." });
+          }
         }
       }
 
@@ -945,7 +1138,7 @@ async function startServer() {
         backupSessions = backupSessions.filter(s => s.sessionId !== sessionId);
         backupSessions.unshift(doc);
         await saveSessionsFallback();
-        return res.json({ success: true, sessionId, session: doc });
+        return res.json({ success: true, sessionId, session: sanitizeSession(doc) });
       }
 
       const client = await connectDb();
@@ -956,13 +1149,13 @@ async function startServer() {
           doc,
           { upsert: true }
         );
-        return res.json({ success: true, sessionId, session: doc });
+        return res.json({ success: true, sessionId, session: sanitizeSession(doc) });
       }
 
       backupSessions = backupSessions.filter(s => s.sessionId !== sessionId);
       backupSessions.unshift(doc);
       await saveSessionsFallback();
-      res.json({ success: true, sessionId, session: doc });
+      res.json({ success: true, sessionId, session: sanitizeSession(doc) });
     } catch (err) {
       console.error('/api/student/register error:', err);
       res.status(500).json({ error: "Failed to register student" });
@@ -970,10 +1163,11 @@ async function startServer() {
   });
 
   // student login lookup by SRN and Password
-  app.post('/api/student/login', async (req, res) => {
+  app.post('/api/student/login', rateLimit('student-login', 15, 5 * 60 * 1000), async (req, res) => {
     const { srn, password } = req.body;
-    const finalSrn = (srn || '').trim().toUpperCase();
+    const finalSrn = typeof srn === 'string' ? srn.trim().toUpperCase() : '';
     if (!finalSrn) return res.status(400).json({ error: "SRN is required for login" });
+    if (typeof password !== 'string') return res.status(400).json({ error: "Password is required" });
 
     try {
       if (mongoUnavailable) {
@@ -981,8 +1175,18 @@ async function startServer() {
         if (!session) {
           return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
         }
-        if (session.password && session.password !== password) {
+        const storedHash = session.passwordHash || session.password;
+        const storedSalt = session.passwordSalt || null;
+        if (storedHash && !verifyPassword(password, storedHash, storedSalt)) {
           return res.status(401).json({ error: "Incorrect password for this SRN." });
+        }
+        // Upgrade legacy plaintext password if needed
+        if (session.password && !session.passwordSalt) {
+          const hp = hashPassword(password);
+          session.passwordHash = hp.hash;
+          session.passwordSalt = hp.salt;
+          delete session.password;
+          await saveSessionsFallback();
         }
         return res.json({
           success: true,
@@ -1004,8 +1208,21 @@ async function startServer() {
         if (!session || !session.studentName) {
           return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
         }
-        if (session.password && session.password !== password) {
+        const storedHash = session.passwordHash || session.password;
+        const storedSalt = session.passwordSalt || null;
+        if (storedHash && !verifyPassword(password, storedHash, storedSalt)) {
           return res.status(401).json({ error: "Incorrect password for this SRN." });
+        }
+        // Upgrade legacy plaintext password if needed
+        if (session.password && !session.passwordSalt) {
+          const hp = hashPassword(password);
+          session.passwordHash = hp.hash;
+          session.passwordSalt = hp.salt;
+          delete session.password;
+          await db.collection('interviewsessions').updateMany(
+            { $or: [{ srn: finalSrn }, { usn: finalSrn }] },
+            { $set: { passwordHash: hp.hash, passwordSalt: hp.salt }, $unset: { password: "" } }
+          );
         }
         return res.json({
           success: true,
@@ -1021,7 +1238,9 @@ async function startServer() {
       if (!session) {
         return res.status(404).json({ error: "No profile found for this SRN. Please register first." });
       }
-      if (session.password && session.password !== password) {
+      const storedHash = session.passwordHash || session.password;
+      const storedSalt = session.passwordSalt || null;
+      if (storedHash && !verifyPassword(password, storedHash, storedSalt)) {
         return res.status(401).json({ error: "Incorrect password for this SRN." });
       }
       res.json({
@@ -1041,25 +1260,27 @@ async function startServer() {
   // check if SRN is already registered
   app.get('/api/student/check-srn', async (req, res) => {
     const srn = req.query.srn;
-    const finalSrn = (srn || '').trim().toUpperCase();
+    const finalSrn = typeof srn === 'string' ? srn.trim().toUpperCase() : '';
     if (!finalSrn) return res.status(400).json({ error: "Missing srn" });
 
     try {
       let exists = false;
       if (mongoUnavailable) {
-        exists = backupSessions.some(s => (s.srn === finalSrn || s.usn === finalSrn) && s.password);
+        exists = backupSessions.some(s => (s.srn === finalSrn || s.usn === finalSrn) && (s.passwordHash || s.password));
       } else {
         const client = await connectDb();
         if (client) {
           const db = client.db(DB_NAME);
           const count = await db.collection('interviewsessions').countDocuments({
-            $or: [{ srn: finalSrn }, { usn: finalSrn }],
-            password: { $ne: null }
+            $and: [
+              { $or: [{ srn: finalSrn }, { usn: finalSrn }] },
+              { $or: [{ passwordHash: { $ne: null } }, { password: { $ne: null } }] }
+            ]
           });
           exists = count > 0;
         }
       }
-      res.json({ exists });
+      res.json({ exists: Boolean(exists) });
     } catch (err) {
       console.error('/api/student/check-srn error:', err);
       res.status(500).json({ error: "Internal server error" });
@@ -1068,14 +1289,15 @@ async function startServer() {
 
   // student sessions (history / dashboard stats)
   app.get('/api/student/sessions', async (req, res) => {
-    const srn = req.query.srn || req.query.usn;
-    if (!srn) return res.status(400).json({ error: 'Missing srn' });
+    const srn = typeof req.query.srn === 'string' ? req.query.srn : typeof req.query.usn === 'string' ? req.query.usn : '';
+    if (!srn.trim()) return res.status(400).json({ error: 'Missing srn' });
+    const cleanSrn = srn.trim().toUpperCase();
 
     try {
       if (mongoUnavailable) {
-        const filtered = backupSessions.filter(s => ((s.srn && s.srn === srn.toUpperCase()) || (s.usn && s.usn === srn.toUpperCase())) && s.status === 'completed');
+        const filtered = backupSessions.filter(s => ((s.srn && s.srn === cleanSrn) || (s.usn && s.usn === cleanSrn)) && s.status === 'completed');
         filtered.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
-        return res.json({ sessions: filtered });
+        return res.json({ sessions: filtered.map(sanitizeSession) });
       }
 
       const client = await connectDb();
@@ -1084,20 +1306,20 @@ async function startServer() {
         const items = await db.collection('interviewsessions')
           .find({
             $or: [
-              { srn: srn.toUpperCase() },
-              { usn: srn.toUpperCase() }
+              { srn: cleanSrn },
+              { usn: cleanSrn }
             ],
             status: 'completed'
           })
           .sort({ completedAt: -1 })
           .toArray();
-        const mapped = items.map(s => ({ ...s, srn: s.srn || s.usn }));
+        const mapped = items.map(s => sanitizeSession({ ...s, srn: s.srn || s.usn }));
         return res.json({ sessions: mapped });
       }
 
-      const filtered = backupSessions.filter(s => ((s.srn && s.srn === srn.toUpperCase()) || (s.usn && s.usn === srn.toUpperCase())) && s.status === 'completed');
+      const filtered = backupSessions.filter(s => ((s.srn && s.srn === cleanSrn) || (s.usn && s.usn === cleanSrn)) && s.status === 'completed');
       filtered.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
-      res.json({ sessions: filtered });
+      res.json({ sessions: filtered.map(sanitizeSession) });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to fetch sessions' });
@@ -1299,7 +1521,7 @@ async function startServer() {
           backupSessions.unshift(session);
           await saveSessionsFallback();
         }
-        return res.json({ session });
+        return res.json({ session: sanitizeSession(session) });
       }
 
       const client = await connectDb();
@@ -1310,7 +1532,7 @@ async function startServer() {
           session = { sessionId, mode: 'ai', status: 'in_progress', aiStatus: 'active', transcript: [], startTime: new Date(), updatedAt: new Date() };
           await db.collection('interviewsessions').insertOne(session);
         }
-        return res.json({ session });
+        return res.json({ session: sanitizeSession(session) });
       }
 
       let session = backupSessions.find(s => s.sessionId === sessionId);
@@ -1319,7 +1541,7 @@ async function startServer() {
         backupSessions.unshift(session);
         await saveSessionsFallback();
       }
-      res.json({ session });
+      res.json({ session: sanitizeSession(session) });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Failed to fetch session" });
@@ -1376,7 +1598,7 @@ async function startServer() {
         }
         Object.assign(session, updates);
         await saveSessionsFallback();
-        return res.json({ success: true, session });
+        return res.json({ success: true, session: sanitizeSession(session) });
       }
 
       const client = await connectDb();
@@ -1389,7 +1611,7 @@ async function startServer() {
         }
         await db.collection('interviewsessions').updateOne({ sessionId }, { $set: updates });
         const updated = await db.collection('interviewsessions').findOne({ sessionId });
-        return res.json({ success: true, session: updated });
+        return res.json({ success: true, session: sanitizeSession(updated) });
       }
 
       let session = backupSessions.find(s => s.sessionId === sessionId);
@@ -1399,7 +1621,7 @@ async function startServer() {
       }
       Object.assign(session, updates);
       await saveSessionsFallback();
-      res.json({ success: true, session });
+      res.json({ success: true, session: sanitizeSession(session) });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Failed to update session" });
@@ -1528,6 +1750,9 @@ async function startServer() {
 });
 
 app.get('/api/entrances', async (req, res) => {
+  if (!getAdminAuth(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   console.log('/api/entrances request, mongoUnavailable=', mongoUnavailable);
   try {
     if (mongoUnavailable) {
@@ -1551,17 +1776,24 @@ app.get('/api/entrances', async (req, res) => {
 });
 
 app.get('/api/entrances/:id', async (req, res) => {
+  if (!getAdminAuth(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const id = req.params.id;
+  if (!/^[a-zA-Z0-9_\-]+$/.test(id)) {
+    return res.status(400).json({ error: 'Invalid id' });
+  }
   try {
     const client = await connectDb();
-    if (client) {
+    if (client && ObjectId.isValid(id)) {
       const db = client.db(DB_NAME);
-      const item = await db.collection('entrances').findOne({ _id: new ObjectId(req.params.id) });
+      const item = await db.collection('entrances').findOne({ _id: new ObjectId(id) });
       if (!item) return res.status(404).json({ error: 'not found' });
-      res.json(item);
+      return res.json(item);
     } else {
-      const item = backupEntrances.find(e => e.id === req.params.id);
+      const item = backupEntrances.find(e => e.id === id);
       if (!item) return res.status(404).json({ error: 'not found' });
-      res.json(item);
+      return res.json(item);
     }
   } catch (err) {
     console.error(err);
@@ -1570,7 +1802,7 @@ app.get('/api/entrances/:id', async (req, res) => {
 });
 
 // Preview endpoints: save and serve latest snapshot for a given entrance id
-app.post('/api/compile', async (req, res) => {
+app.post('/api/compile', rateLimit('compile', 20, 60 * 1000), async (req, res) => {
   try {
     const { language, code } = req.body;
     if (!language || !code) return res.status(400).json({ error: 'language and code required' });
@@ -1589,21 +1821,32 @@ app.post('/api/compile', async (req, res) => {
 
 app.post('/api/preview/:id', async (req, res) => {
   try {
+    const id = req.params.id;
+    if (!/^[a-zA-Z0-9_\-]+$/.test(id)) {
+      return res.status(400).json({ error: 'invalid id' });
+    }
     const { image, type } = req.body;
     if (!image) return res.status(400).json({ error: 'image required' });
 
-    const m = image.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    const cleanType = type && /^[a-zA-Z0-9_\-]+$/.test(type) ? type : '';
+    const m = String(image).match(/^data:(image\/(jpeg|jpg|png|webp));base64,(.+)$/);
     if (!m) return res.status(400).json({ error: 'invalid image data' });
     const mime = m[1];
-    const b64 = m[2];
+    const b64 = m[3];
     const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1];
-    const suffix = type ? `-${type}` : '';
+    const suffix = cleanType ? `-${cleanType}` : '';
 
     await fs.mkdir(previewsDir, { recursive: true });
-    const filePath = path.join(previewsDir, `${req.params.id}${suffix}.${ext}`);
+    const fileName = `${id}${suffix}.${ext}`;
+    const filePath = path.join(previewsDir, fileName);
+
+    // Path traversal defense
+    if (!path.resolve(filePath).startsWith(path.resolve(previewsDir))) {
+      return res.status(400).json({ error: 'invalid path' });
+    }
+
     const buf = Buffer.from(b64, 'base64');
     await fs.writeFile(filePath, buf);
-    console.log(`/api/preview POST saved: id=${req.params.id} type=${type || 'unknown'} path=${filePath}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('/api/preview POST error:', err);
@@ -1613,18 +1856,29 @@ app.post('/api/preview/:id', async (req, res) => {
 
 app.get('/api/preview/:id', async (req, res) => {
   try {
+    const id = req.params.id;
+    if (!/^[a-zA-Z0-9_\-]+$/.test(id)) {
+      return res.status(400).json({ error: 'invalid id' });
+    }
     const files = await fs.readdir(previewsDir).catch(() => []);
     const qtype = req.query.type; // e.g., 'screen' or 'cam'
+    const cleanType = qtype && /^[a-zA-Z0-9_\-]+$/.test(qtype) ? qtype : null;
     let found = null;
-    if (qtype) {
-      found = files.find(f => f.startsWith(req.params.id + `-${qtype}.`));
+    if (cleanType) {
+      found = files.find(f => f.startsWith(id + `-${cleanType}.`));
     }
     if (!found) {
       // fallback: prefer screen file, then any matching id.*
-      found = files.find(f => f.startsWith(req.params.id + '-screen.')) || files.find(f => f.startsWith(req.params.id + '.')) || files.find(f => f.startsWith(req.params.id + '-cam.'));
+      found = files.find(f => f.startsWith(id + '-screen.')) || files.find(f => f.startsWith(id + '.')) || files.find(f => f.startsWith(id + '-cam.'));
     }
     if (!found) return res.status(404).json({ error: 'not found' });
     const filePath = path.join(previewsDir, found);
+
+    // Path traversal defense
+    if (!path.resolve(filePath).startsWith(path.resolve(previewsDir))) {
+      return res.status(400).json({ error: 'invalid path' });
+    }
+
     const buf = await fs.readFile(filePath);
     const ext = path.extname(found).slice(1);
     const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
@@ -1639,7 +1893,7 @@ app.get('/api/preview/:id', async (req, res) => {
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
     ws.role = null;
     ws.sessionId = null;
     console.log('ws connection established');
@@ -1648,8 +1902,16 @@ app.get('/api/preview/:id', async (req, res) => {
       try {
         const message = JSON.parse(raw.toString());
         if (message.type === 'register' && message.role && message.id) {
+          if (message.role === 'admin' && !getAdminAuth(req)) {
+            console.warn('Unauthorized admin WebSocket connection attempt rejected');
+            try {
+              ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized: Admin authentication required' }));
+            } catch (e) {}
+            return;
+          }
+
           ws.role = message.role;
-          ws.sessionId = message.id;
+          ws.sessionId = String(message.id);
           const session = getSession(message.id);
           console.log(`ws register: role=${message.role} id=${message.id}`);
           if (message.role === 'admin') {
